@@ -41,8 +41,11 @@
 #include <SdFat.h>
 #include <WiFiNINA.h>
 
-
 #include "indicator.h"
+#include "logging.h"
+#include "serial_handler.h"
+#include "sdcard_handler.h"
+#include "null_handler.h"
 
 #define SEESAW_CENTER_BUTTON_PIN (24)
 #define SEESAW_UP_BUTTON_PIN      (3)
@@ -72,12 +75,14 @@ Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_
 Adafruit_SPIFlash flash(&flashTransport);
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 RTC_DS3231 rtc;
-seesaw_NeoPixel ss(1, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_LSM303_Accel_Unified accel(54321);
 Adafruit_LSM303_Mag_Unified mag(12345);
 Adafruit_BME680 bme;
 uint32_t button_pin_mask = 0;
-Indicator pixel(&ss, 0);
+Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
+
+Logger *logger;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 #define SEALEVELPRESSURE_HPA (1013.25)
@@ -99,7 +104,7 @@ void fail(void)
   int delta = 1;
   byte red = 0;
   while (1) {
-    pixel.show(red, 0, 0);
+    pixels[0].show(red, 0, 0);
     if (red == 255 || red == 0) {
       delta *= -1;
     }
@@ -116,12 +121,36 @@ void _putchar(char character)
 }
 
 
+void initialize_serial()
+{
+  Serial.begin(115200);
+  while (!Serial);
+  delay(1000);
+}
+
+
+void initialize_logging()
+{
+  LoggingHandler *handler;
+  LoggingHandler *sd_handler = new SDCardHandler(SD_CS);
+  if (LOG_TO_SERIAL) {
+    initialize_serial();
+    handler = new SerialHandler();
+  } else {
+    handler = new NullHandler();
+  }
+  logger = Logger::get_logger(handler);
+  logger->set_level(log_level_for(LOG_LEVEL));
+  if (sd_handler->initialized()) {
+    logger->add_handler(sd_handler);
+  }
+}
+
+
 void setup() {
   boolean success = true;
 
-  Serial.begin(115200);
-  delay(5000);
-  //while (!Serial);
+  //  initialize_logging();
 
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
@@ -234,7 +263,7 @@ void setup() {
     tft.println("NOT PRESENT");
   } else {
     tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    tft.println("PRESENT");
   }
 
   // WiFi Module
@@ -322,8 +351,15 @@ unsigned long rtc_update_time = 0;
 unsigned long accel_update_time = 0;
 unsigned long mag_update_time = 0;
 unsigned long bme_update_time = 0;
+unsigned long altitude_update_time = 0;
 unsigned long light_update_time = 0;
 unsigned long temp_update_time = 0;
+unsigned long pixel_update_time = 0;
+
+int current_pixel = 4;
+int pixel_direction = 1;
+
+float altitude = 0.0;
 
 void loop() {
   ss.digitalWrite(15, false);
@@ -376,15 +412,19 @@ void loop() {
   }
 
   if (now >= bme_update_time) {
-    bme_update_time = now + 5000;
+    bme_update_time = now + 60000;
     if (bme.performReading()) {
-      float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
       tft.fillRect(50, 164, 190, 32, ILI9341_BLACK);
       tft.setCursor(50, 164);
       printf("%.2fC, %.2f hPa, %.2f%%", bme.temperature, bme.pressure / 100.0, bme.humidity);
       tft.setCursor(50, 174);
       printf("%.2f kOhms, ~%.2f m", bme.gas_resistance / 1000.0, altitude);
     }
+  }
+
+  if (now >= altitude_update_time) {
+    altitude_update_time = now + 600000;
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
   }
 
   uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
@@ -400,7 +440,15 @@ void loop() {
 
   uint32_t val = abs(ss.getEncoderPosition());
   val = constrain(val * 2, 0, 255);
-  pixel.show(wheel(val)); //write to the led
-  ss.digitalWrite(15, true);
-  //  delay(20);
+  if (now >= pixel_update_time) {
+    pixel_update_time = now + 100;
+
+    if (current_pixel == 0 || current_pixel == 7) {
+      pixel_direction *= -1;
+    }
+    pixels[current_pixel].show(0x000000);
+
+    current_pixel += pixel_direction;
+  }
+  pixels[current_pixel].show(wheel(val)); //write to the led
 }

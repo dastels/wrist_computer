@@ -41,9 +41,18 @@
 #include <SdFat.h>
 #include <WiFiNINA.h>
 
-#define SEESAW_CENTER_BUTTON_PIN  (9)
-#define SEESAW_NEOPIXEL_PIN      (10)
-#define SEESAW_LED_PIN           (15)
+#include "indicator.h"
+#include "logging.h"
+#include "serial_handler.h"
+#include "sdcard_handler.h"
+#include "null_handler.h"
+
+#define SEESAW_CENTER_BUTTON_PIN (24)
+#define SEESAW_UP_BUTTON_PIN      (3)
+#define SEESAW_DOWN_BUTTON_PIN    (2)
+#define SEESAW_LEFT_BUTTON_PIN   (11)
+#define SEESAW_RIGHT_BUTTON_PIN  (25)
+#define SEESAW_NEOPIXEL_PIN      (15)
 
 #define RED_LED       (13)
 #define TFT_RESET     (24)
@@ -66,10 +75,14 @@ Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_
 Adafruit_SPIFlash flash(&flashTransport);
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 RTC_DS3231 rtc;
-seesaw_NeoPixel ss(1, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_LSM303_Accel_Unified accel(54321);
 Adafruit_LSM303_Mag_Unified mag(12345);
 Adafruit_BME680 bme;
+uint32_t button_pin_mask = 0;
+Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
+
+Logger *logger;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 #define SEALEVELPRESSURE_HPA (1013.25)
@@ -91,8 +104,7 @@ void fail(void)
   int delta = 1;
   byte red = 0;
   while (1) {
-    ss.setPixelColor(0, red, 0, 0);
-    ss.show();
+    pixels[0].show(red, 0, 0);
     if (red == 255 || red == 0) {
       delta *= -1;
     }
@@ -109,12 +121,36 @@ void _putchar(char character)
 }
 
 
+void initialize_serial()
+{
+  Serial.begin(115200);
+  while (!Serial);
+  delay(1000);
+}
+
+
+void initialize_logging()
+{
+  LoggingHandler *handler;
+  LoggingHandler *sd_handler = new SDCardHandler(SD_CS);
+  if (LOG_TO_SERIAL) {
+    initialize_serial();
+    handler = new SerialHandler();
+  } else {
+    handler = new NullHandler();
+  }
+  logger = Logger::get_logger(handler);
+  logger->set_level(log_level_for(LOG_LEVEL));
+  if (sd_handler->initialized()) {
+    logger->add_handler(sd_handler);
+  }
+}
+
+
 void setup() {
   boolean success = true;
 
-  Serial.begin(115200);
-  delay(5000);
-  //while (!Serial);
+  //  initialize_logging();
 
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
@@ -162,8 +198,11 @@ void setup() {
   } else {
     tft.setTextColor(ILI9341_GREEN);
     tft.println("PASSED");
-    ss.pinMode(SEESAW_LED_PIN, OUTPUT);
     ss.pinMode(SEESAW_CENTER_BUTTON_PIN, INPUT_PULLUP);
+    ss.pinMode(SEESAW_UP_BUTTON_PIN, INPUT_PULLUP);
+    ss.pinMode(SEESAW_DOWN_BUTTON_PIN, INPUT_PULLUP);
+    ss.pinMode(SEESAW_LEFT_BUTTON_PIN, INPUT_PULLUP);
+    ss.pinMode(SEESAW_RIGHT_BUTTON_PIN, INPUT_PULLUP);
     ss.show();
   }
 
@@ -224,7 +263,7 @@ void setup() {
     tft.println("NOT PRESENT");
   } else {
     tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    tft.println("PRESENT");
   }
 
   // WiFi Module
@@ -267,6 +306,14 @@ void setup() {
   pinMode(SPKR_SHUTDOWN, OUTPUT);
   digitalWrite(SPKR_SHUTDOWN, LOW);
 
+  button_pin_mask =
+    (1 << SEESAW_CENTER_BUTTON_PIN) |
+    (1 << SEESAW_UP_BUTTON_PIN) |
+    (1 << SEESAW_DOWN_BUTTON_PIN) |
+    (1 << SEESAW_LEFT_BUTTON_PIN) |
+    (1 << SEESAW_RIGHT_BUTTON_PIN);
+
+
   tft.setTextColor(ILI9341_WHITE);
   tft.setCursor(0, 100);
   tft.print("Light:");
@@ -278,6 +325,8 @@ void setup() {
   tft.print("Mag:");
   tft.setCursor(0, 164);
   tft.print("BME:");
+  tft.setCursor(0, 196);
+  tft.print("Buttons:");
 
 }
 
@@ -302,8 +351,15 @@ unsigned long rtc_update_time = 0;
 unsigned long accel_update_time = 0;
 unsigned long mag_update_time = 0;
 unsigned long bme_update_time = 0;
+unsigned long altitude_update_time = 0;
 unsigned long light_update_time = 0;
 unsigned long temp_update_time = 0;
+unsigned long pixel_update_time = 0;
+
+int current_pixel = 4;
+int pixel_direction = 1;
+
+float altitude = 0.0;
 
 void loop() {
   ss.digitalWrite(15, false);
@@ -321,7 +377,7 @@ void loop() {
 
   // light sensor
   if (now >= light_update_time) {
-    light_update_time = now + 300;
+    light_update_time = now + 500;
     uint16_t light = analogRead(LIGHT_SENSOR);
     tft.fillRect(50, 100, 190, 16, ILI9341_BLACK);
     tft.setCursor(50, 100);
@@ -330,7 +386,7 @@ void loop() {
 
   // pyportal temp sensor
   if (now >= temp_update_time) {
-    temp_update_time = now + 5000;
+    temp_update_time = now + 10000;
     float temp = tempsensor.readTempC();
     tft.fillRect(50, 116, 190, 16, ILI9341_BLACK);
     tft.setCursor(50, 116);
@@ -338,7 +394,7 @@ void loop() {
   }
 
   if (now >= accel_update_time) {
-    accel_update_time = now + 400; // every half second
+    accel_update_time = now + 400;
     sensors_event_t event;
     accel.getEvent(&event);
     tft.fillRect(50, 132, 190, 16, ILI9341_BLACK);
@@ -347,7 +403,7 @@ void loop() {
   }
 
   if (now >= mag_update_time) {
-    mag_update_time = now + 600; // every half second
+    mag_update_time = now + 600;
     sensors_event_t event;
     mag.getEvent(&event);
     tft.fillRect(50, 148, 190, 16, ILI9341_BLACK);
@@ -356,9 +412,8 @@ void loop() {
   }
 
   if (now >= bme_update_time) {
-    bme_update_time = now + 1100; // every second
+    bme_update_time = now + 60000;
     if (bme.performReading()) {
-      float altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
       tft.fillRect(50, 164, 190, 32, ILI9341_BLACK);
       tft.setCursor(50, 164);
       printf("%.2fC, %.2f hPa, %.2f%%", bme.temperature, bme.pressure / 100.0, bme.humidity);
@@ -367,11 +422,33 @@ void loop() {
     }
   }
 
+  if (now >= altitude_update_time) {
+    altitude_update_time = now + 600000;
+    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  }
+
+  uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
+  tft.fillRect(50, 196, 190, 16, ILI9341_BLACK);
+  tft.setCursor(50, 196);
+  printf("%s %s %s %s %s",
+         (buttons & (1 << SEESAW_CENTER_BUTTON_PIN)) ? " " : "C",
+         (buttons & (1 << SEESAW_UP_BUTTON_PIN)) ? " " : "U",
+         (buttons & (1 << SEESAW_DOWN_BUTTON_PIN)) ? " " : "D",
+         (buttons & (1 << SEESAW_LEFT_BUTTON_PIN)) ? " " : "L",
+         (buttons & (1 << SEESAW_RIGHT_BUTTON_PIN)) ? " " : "R");
+
 
   uint32_t val = abs(ss.getEncoderPosition());
   val = constrain(val * 2, 0, 255);
-  ss.setPixelColor(0, wheel(val)); //write to the led
-  ss.show();
-  ss.digitalWrite(15, true);
-  delay(20);
+  if (now >= pixel_update_time) {
+    pixel_update_time = now + 100;
+
+    if (current_pixel == 0 || current_pixel == 7) {
+      pixel_direction *= -1;
+    }
+    pixels[current_pixel].show(0x000000);
+
+    current_pixel += pixel_direction;
+  }
+  pixels[current_pixel].show(wheel(val)); //write to the led
 }
