@@ -15,7 +15,7 @@ NeopixelHandler::NeopixelHandler(Indicator *pixel)
 
 void NeopixelHandler::emit(const char *level_name, const char *msg)
 {
-  switch  (level_for(level_name)) {
+  switch  (log_level_for(level_name)) {
   case LogLevel::WARNING:
     indicator->show(0xFFFF00);
     break;

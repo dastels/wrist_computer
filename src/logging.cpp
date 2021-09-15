@@ -11,7 +11,7 @@
 const char *level_names[] = {"NOTSET", "DEBUG_DEEP", "DEBUG_MID", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"};
 
 
-LogLevel level_for(const char *level_name)
+LogLevel log_level_for(const char *level_name)
 {
   int name_index = -1;
   for (int i = 0; i < 8; i++) {
@@ -27,7 +27,7 @@ LogLevel level_for(const char *level_name)
   }
 }
 
-const char *level_name_for(LogLevel level)
+const char *log_name_for_level(LogLevel level)
 {
   switch (level) {
   case LogLevel::NOTSET:
@@ -144,7 +144,7 @@ void Logger::_internal_log(LogLevel level, const char *format, va_list args)
     vsprintf(_buffer, format, args);
     for (int i = 0; i < MAX_NUMBER_OF_HANDLERS; i++) {
       if (_handlers[i]) {
-        _handlers[i]->emit(level_name_for(level), _buffer);
+        _handlers[i]->emit(log_name_level_for(level), _buffer);
       }
     }
   }
