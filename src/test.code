@@ -29,23 +29,25 @@
 #include <LibPrintf.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <SdFat.h>
+#include <WiFiNINA.h>
+
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
 #include <Adafruit_BME680.h>
-#include <SPI.h>
-#include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_SPIFlash.h>
 #include <Adafruit_ADT7410.h>
 #include <TouchScreen.h>
-#include <SdFat.h>
-#include <WiFiNINA.h>
 
 #include "indicator.h"
 #include "logging.h"
 #include "serial_handler.h"
 #include "sdcard_handler.h"
 #include "null_handler.h"
+#include "haptic.h"
 
 #define SEESAW_CENTER_BUTTON_PIN (24)
 #define SEESAW_UP_BUTTON_PIN      (3)
@@ -79,6 +81,7 @@ seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_LSM303_Accel_Unified accel(54321);
 Adafruit_LSM303_Mag_Unified mag(12345);
 Adafruit_BME680 bme;
+Adafruit_DRV2605 haptic;
 uint32_t button_pin_mask = 0;
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
 

@@ -29,23 +29,28 @@
 #include <LibPrintf.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <SdFat.h>
+#include <WiFiNINA.h>
+
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303_U.h>
 #include <Adafruit_BME680.h>
-#include <SPI.h>
-#include <Adafruit_GFX.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_SPIFlash.h>
 #include <Adafruit_ADT7410.h>
+
+#include <Adafruit_LvGL_Glue.h> // Always include this BEFORE lvgl.h!
+#include <lvgl.h>
 #include <TouchScreen.h>
-#include <SdFat.h>
-#include <WiFiNINA.h>
 
 #include "indicator.h"
 #include "logging.h"
 #include "serial_handler.h"
 #include "sdcard_handler.h"
 #include "null_handler.h"
+#include "haptic.h"
 
 #define SEESAW_CENTER_BUTTON_PIN (24)
 #define SEESAW_UP_BUTTON_PIN      (3)
@@ -61,6 +66,7 @@
 #define SD_CS         (32)
 #define SPKR_SHUTDOWN (50)
 
+#define TFT_ROTATION   (1) // Landscape orientation on PyPortal
 #define TFT_D0        (34) // Data bit 0 pin (MUST be on PORT byte boundary)
 #define TFT_WR        (26) // Write-strobe pin (CCL-inverted timer output)
 #define TFT_DC        (10) // Data/command pin
@@ -79,6 +85,7 @@ seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_LSM303_Accel_Unified accel(54321);
 Adafruit_LSM303_Mag_Unified mag(12345);
 Adafruit_BME680 bme;
+Adafruit_DRV2605 haptic;
 uint32_t button_pin_mask = 0;
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
 
@@ -92,6 +99,8 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 #define YM (A6)   // can be a digital pin
 #define XP (A5)   // can be a digital pin
 TouchScreen ts(XP, YP, XM, YM, 300);
+Adafruit_LvGL_Glue glue;
+
 #define X_MIN  (750)
 #define X_MAX  (325)
 #define Y_MIN  (840)
@@ -147,6 +156,97 @@ void initialize_logging()
 }
 
 
+//==============================================================================
+// For sample sensor display
+//==============================================================================
+lv_obj_t *time_value_label;
+lv_obj_t *light_value_label;
+lv_obj_t *temp_value_label;
+lv_obj_t *accel_value_label;
+lv_obj_t *mag_value_label;
+lv_obj_t *bme1_value_label;
+lv_obj_t *bme2_value_label;
+lv_obj_t *buttons_value_label;
+//------------------------------------------------------------------------------
+
+//==============================================================================
+// Display update tasks
+//==============================================================================
+lv_task_t * time_update_task;
+lv_task_t * light_update_task;
+lv_task_t * temp_update_task;
+lv_task_t * accel_update_task;
+lv_task_t * mag_update_task;
+lv_task_t * bme_update_task;
+lv_task_t * buttons_update_task;
+//------------------------------------------------------------------------------
+
+//==============================================================================
+// Task functions
+//==============================================================================
+
+char buffer[128]; // Since the LVGL formatting doesn't seem to support floats
+
+void update_time_display(lv_task_t *task)
+{
+  DateTime t = rtc.now();
+  sprintf(buffer, "%4d/%02d/%02d %02d:%02d:%02d", t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
+  lv_label_set_text(time_value_label, buffer);
+}
+
+void update_light_display(lv_task_t *task)
+{
+  sprintf(buffer, "%3d", analogRead(LIGHT_SENSOR));
+  lv_label_set_text(light_value_label, buffer);
+}
+
+void update_temp_display(lv_task_t *task)
+{
+  sprintf(buffer, "%5.2fC", tempsensor.readTempC());
+  lv_label_set_text_fmt(temp_value_label, buffer);
+}
+
+void update_accel_display(lv_task_t *task)
+{
+  sensors_event_t event;
+  accel.getEvent(&event);
+  sprintf(buffer, "(%.2f, %.2f, %.2f) m/s^2", event.acceleration.x, event.acceleration.y, event.acceleration.z);
+  lv_label_set_text(accel_value_label, buffer);
+}
+
+void update_mag_display(lv_task_t *task)
+{
+  sensors_event_t event;
+  mag.getEvent(&event);
+  sprintf(buffer, "(%.2f, %.2f, %.2f) uT", event.magnetic.x, event.magnetic.y, event.magnetic.z);
+  lv_label_set_text(mag_value_label, buffer);
+}
+
+void update_bme_display(lv_task_t *task)
+{
+  if (bme.performReading()) {
+    sprintf(buffer, "%.2fC, %.2f hPa, %.2f%%", bme.temperature, bme.pressure / 100.0, bme.humidity);
+    lv_label_set_text(bme1_value_label, buffer);
+    sprintf(buffer, "%.2f kOhms, ~%.2f m", bme.gas_resistance / 1000.0, bme.readAltitude(SEALEVELPRESSURE_HPA));
+    lv_label_set_text(bme2_value_label, buffer);
+  }
+}
+
+void update_buttons_display(lv_task_t *task)
+{
+  uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
+  if (buttons > 0) { // there seems to be some all 0 readings which are nonsensical
+    sprintf(buffer, "%s%s%s%s%s",
+            (buttons & (1 << SEESAW_CENTER_BUTTON_PIN)) ? "" : "C ",
+            (buttons & (1 << SEESAW_UP_BUTTON_PIN)) ? "" : "U ",
+            (buttons & (1 << SEESAW_DOWN_BUTTON_PIN)) ? "" : "D ",
+            (buttons & (1 << SEESAW_LEFT_BUTTON_PIN)) ? "" : "L ",
+            (buttons & (1 << SEESAW_RIGHT_BUTTON_PIN)) ? "" : "R");
+    lv_label_set_text(buttons_value_label, buffer);
+  }
+}
+
+
 void setup() {
   boolean success = true;
 
@@ -163,8 +263,11 @@ void setup() {
   digitalWrite(TFT_RESET, HIGH);
   delay(10);
 
+  // Initialize display BEFORE glue setup
   tft.begin();
-  tft.setRotation(1);
+  tft.setRotation(TFT_ROTATION);
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  digitalWrite(TFT_BACKLIGHT, HIGH);
 
   printf_init(tft);
 
@@ -173,129 +276,115 @@ void setup() {
   tft.setTextColor(ILI9341_WHITE);
   tft.setTextWrap(true);
 
+    // Initialize glue, passing in address of display & touchscreen
+  LvGLStatus status = glue.begin(&tft, &ts);
+  if(status != LVGL_OK) {
+    Serial.print("Glue error "); Serial.println((int)status);
+    while(1);
+  }
+
+  lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
+  lv_label_set_text(label, "Hello PyPortal!");
+  lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
+  lv_obj_t * status_text = lv_textarea_create(lv_scr_act(), NULL);
+  lv_obj_set_size(status_text, 240, 175);
+  lv_obj_align(status_text, label, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  lv_textarea_set_text(status_text, "");
+
   // RTC
-  tft.setCursor(0, 0);
-  tft.print("RTC ");
-  tft.setCursor(150, 0);
+  lv_textarea_add_text(status_text, "RTC ");
   if (!rtc.begin()) {
-    tft.setTextColor(ILI9341_RED);
-    tft.print("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.print("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
   }
+  lv_task_handler();
 
   // SEESAW
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 10);
-  tft.print("Seesaw ");
-  tft.setCursor(150, 10);
+  lv_textarea_add_text(status_text, "Seesaw ");
   if (!ss.begin(0x36)) {
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
-    ss.pinMode(SEESAW_CENTER_BUTTON_PIN, INPUT_PULLUP);
-    ss.pinMode(SEESAW_UP_BUTTON_PIN, INPUT_PULLUP);
-    ss.pinMode(SEESAW_DOWN_BUTTON_PIN, INPUT_PULLUP);
-    ss.pinMode(SEESAW_LEFT_BUTTON_PIN, INPUT_PULLUP);
-    ss.pinMode(SEESAW_RIGHT_BUTTON_PIN, INPUT_PULLUP);
+    button_pin_mask =
+      (1 << SEESAW_CENTER_BUTTON_PIN) |
+      (1 << SEESAW_UP_BUTTON_PIN) |
+      (1 << SEESAW_DOWN_BUTTON_PIN) |
+      (1 << SEESAW_LEFT_BUTTON_PIN) |
+      (1 << SEESAW_RIGHT_BUTTON_PIN);
+
+    lv_textarea_add_text(status_text, "PASSED\n");
+    ss.pinModeBulk(button_pin_mask, INPUT_PULLUP);
     ss.show();
   }
+  lv_task_handler();
 
   // LSM303
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 20);
-  tft.print("LSM303 ");
-  tft.setCursor(150, 20);
+  lv_textarea_add_text(status_text, "LSM303 ");
   if (!accel.begin() || !mag.begin()) {
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
   }
+  lv_task_handler();
 
   // BME680
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 30);
-  tft.print("BME680 ");
-  tft.setCursor(150, 30);
+  lv_textarea_add_text(status_text, "BME680 ");
   if (!bme.begin()) {
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
     bme.setTemperatureOversampling(BME680_OS_8X);
     bme.setHumidityOversampling(BME680_OS_2X);
     bme.setPressureOversampling(BME680_OS_4X);
     bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
     bme.setGasHeater(320, 150); // 320*C for 150 ms
   }
+  lv_task_handler();
 
   // QSPI FLASH
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 40);
-  tft.print("QSPI Flash ");
-  tft.setCursor(150, 40);
+  lv_textarea_add_text(status_text, "QSPI Flash ");
   if (!flash.begin()){
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     fail();
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
   }
+  lv_task_handler();
 
   // SD CARD
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 50);
-  tft.print("SD Card ");
-  tft.setCursor(150, 50);
+  lv_textarea_add_text(status_text, "SD Card ");
   if (!SD.begin(SD_CS)) {
-    tft.setTextColor(ILI9341_YELLOW);
-    tft.println("NOT PRESENT");
+    lv_textarea_add_text(status_text, "NOT PRESENT\n");
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PRESENT");
+    lv_textarea_add_text(status_text, "PRESENT\n");
   }
+  lv_task_handler();
 
   // WiFi Module
-
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 60);
-  tft.print("WiFi ");
-  tft.setCursor(150, 60);
+  lv_textarea_add_text(status_text, "WiFi ");
   WiFi.status();
   delay(100);
   if (WiFi.status() == WL_NO_MODULE) {
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
   }
+  lv_task_handler();
 
   // PyPortal Temperature sensor
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 70);
-  tft.print("ADT7410 ");
-  tft.setCursor(150, 70);
+  lv_textarea_add_text(status_text, "ADT7410 ");
   if (!tempsensor.begin()) {
-    tft.setTextColor(ILI9341_RED);
-    tft.println("FAILED");
+    lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    tft.setTextColor(ILI9341_GREEN);
-    tft.println("PASSED");
+    lv_textarea_add_text(status_text, "PASSED\n");
   }
+  lv_task_handler();
 
   if (!success) {
     fail();
@@ -306,30 +395,118 @@ void setup() {
   pinMode(SPKR_SHUTDOWN, OUTPUT);
   digitalWrite(SPKR_SHUTDOWN, LOW);
 
-  button_pin_mask =
-    (1 << SEESAW_CENTER_BUTTON_PIN) |
-    (1 << SEESAW_UP_BUTTON_PIN) |
-    (1 << SEESAW_DOWN_BUTTON_PIN) |
-    (1 << SEESAW_LEFT_BUTTON_PIN) |
-    (1 << SEESAW_RIGHT_BUTTON_PIN);
+  // Cleanup status display
+  delay(5000);
+  lv_obj_del(status_text);
+  lv_obj_del(label);
 
+  //==============================================================================
+  // Build display elements for sensor display
+  //==============================================================================
 
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setCursor(0, 100);
-  tft.print("Light:");
-  tft.setCursor(0, 116);
-  tft.print("Temp:");
-  tft.setCursor(0, 132);
-  tft.print("Accel:");
-  tft.setCursor(0, 148);
-  tft.print("Mag:");
-  tft.setCursor(0, 164);
-  tft.print("BME:");
-  tft.setCursor(0, 196);
-  tft.print("Buttons:");
+  time_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(time_value_label, 100, 16);
+  lv_label_set_text(time_value_label, "0000/00/00 00:00:00");
+  lv_obj_align(time_value_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
 
+  // Light
+  lv_obj_t *light_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(light_label, 84, 16);
+  lv_obj_set_pos(light_label, 0, 21);
+  lv_label_set_text(light_label, "Light:");
+
+  light_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(light_value_label, 84, 16);
+  lv_obj_set_pos(light_value_label, 90, 21);
+  lv_label_set_text(light_value_label, "");
+
+  // PyPortal temperature
+  lv_obj_t *temp_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(temp_label, 84, 16);
+  lv_obj_set_pos(temp_label, 0, 37);
+  lv_label_set_text(temp_label, "Temp:");
+
+  temp_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(temp_value_label, 84, 16);
+  lv_obj_set_pos(temp_value_label, 90, 37);
+  lv_label_set_text(temp_value_label, "");
+
+  // Accelerometer
+  lv_obj_t *accel_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(accel_label, 84, 16);
+  lv_obj_set_pos(accel_label, 0, 53);
+  lv_label_set_text(accel_label, "Accel:");
+
+  accel_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(accel_value_label, 84, 16);
+  lv_obj_set_pos(accel_value_label, 90, 53);
+  lv_label_set_text(accel_value_label, "");
+
+  // Magetometer
+  lv_obj_t *mag_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(mag_label, 84, 16);
+  lv_obj_set_pos(mag_label, 0, 69);
+  lv_label_set_text(mag_label, "Mag:");
+
+  mag_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(mag_value_label, 84, 16);
+  lv_obj_set_pos(mag_value_label, 90, 69);
+  lv_label_set_text(mag_value_label, "");
+
+  // BME temp/humidity/pressure(altitude)/gas
+  lv_obj_t *bme_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme_label, 84, 16);
+  lv_obj_set_pos(bme_label, 0, 85);
+  lv_label_set_text(bme_label, "BME:");
+
+  bme1_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme1_value_label, 84, 16);
+  lv_obj_set_pos(bme1_value_label, 90, 85);
+  lv_label_set_text(bme1_value_label, "");
+
+  bme2_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme2_value_label, 84, 16);
+  lv_obj_set_pos(bme2_value_label, 90, 101);
+  lv_label_set_text(bme2_value_label, "");
+
+  // Control pad buttons
+  lv_obj_t *buttons_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(buttons_label, 84, 16);
+  lv_obj_set_pos(buttons_label, 0, 117);
+  lv_label_set_text(buttons_label, "Buttons:");
+
+  buttons_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(buttons_value_label, 84, 16);
+  lv_obj_set_pos(buttons_value_label, 90, 117);
+  lv_label_set_text(buttons_value_label, "");
+
+  lv_task_handler();
+
+  //------------------------------------------------------------------------------
+  // Start display update tasks
+
+  static uint32_t user_data = 10;
+
+  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(time_update_task);
+
+  light_update_task = lv_task_create(update_light_display, 1000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(light_update_task);
+
+  temp_update_task = lv_task_create(update_temp_display, 10000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(temp_update_task);
+
+  accel_update_task = lv_task_create(update_accel_display, 500, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(accel_update_task);
+
+  mag_update_task = lv_task_create(update_mag_display, 5000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(mag_update_task);
+
+  bme_update_task = lv_task_create(update_bme_display, 5000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(bme_update_task);
 }
 
+uint16_t count = 0;
 
 uint32_t wheel(byte wheel_pos)
 {
@@ -345,110 +522,13 @@ uint32_t wheel(byte wheel_pos)
   return ss.Color(wheel_pos * 3, 255 - wheel_pos * 3, 0);
 }
 
-// Scheduling times
-unsigned long now = 0;
-unsigned long rtc_update_time = 0;
-unsigned long accel_update_time = 0;
-unsigned long mag_update_time = 0;
-unsigned long bme_update_time = 0;
-unsigned long altitude_update_time = 0;
-unsigned long light_update_time = 0;
-unsigned long temp_update_time = 0;
-unsigned long pixel_update_time = 0;
-
-int current_pixel = 4;
-int pixel_direction = 1;
-
-float altitude = 0.0;
+int32_t old_pos = 0;
 
 void loop() {
-  ss.digitalWrite(15, false);
-  now = millis();
-  tft.setTextColor(ILI9341_WHITE);
-
-  // RTC
-  if (now >= rtc_update_time) {
-    rtc_update_time = now + 1000; // every second
-    DateTime t = rtc.now();
-    tft.fillRect(0, 84, 240, 16, ILI9341_BLACK);
-    tft.setCursor(0, 84);
-    printf("%4d/%02d/%02d (%s) %2d:%02d:%02d", t.year(), t.month(), t.day(), daysOfTheWeek[t.dayOfTheWeek()], t.hour(), t.minute(), t.second());
+  lv_task_handler(); // Call LittleVGL task handler periodically
+  int32_t pos = ss.getEncoderPosition();
+  if (pos != old_pos) {
+    pixels[0].show(wheel(constrain(abs(pos) * 2, 0, 255)));
   }
-
-  // light sensor
-  if (now >= light_update_time) {
-    light_update_time = now + 500;
-    uint16_t light = analogRead(LIGHT_SENSOR);
-    tft.fillRect(50, 100, 190, 16, ILI9341_BLACK);
-    tft.setCursor(50, 100);
-    printf("%3d", light);
-  }
-
-  // pyportal temp sensor
-  if (now >= temp_update_time) {
-    temp_update_time = now + 10000;
-    float temp = tempsensor.readTempC();
-    tft.fillRect(50, 116, 190, 16, ILI9341_BLACK);
-    tft.setCursor(50, 116);
-    printf("%5.2fC", temp);
-  }
-
-  if (now >= accel_update_time) {
-    accel_update_time = now + 400;
-    sensors_event_t event;
-    accel.getEvent(&event);
-    tft.fillRect(50, 132, 190, 16, ILI9341_BLACK);
-    tft.setCursor(50, 132);
-    printf("(%.2f, %.2f, %.2f) m/s^2", event.acceleration.x, event.acceleration.y, event.acceleration.z);
-  }
-
-  if (now >= mag_update_time) {
-    mag_update_time = now + 600;
-    sensors_event_t event;
-    mag.getEvent(&event);
-    tft.fillRect(50, 148, 190, 16, ILI9341_BLACK);
-    tft.setCursor(50, 148);
-    printf("(%.2f, %.2f, %.2f) uT", event.magnetic.x, event.magnetic.y, event.magnetic.z);
-  }
-
-  if (now >= bme_update_time) {
-    bme_update_time = now + 60000;
-    if (bme.performReading()) {
-      tft.fillRect(50, 164, 190, 32, ILI9341_BLACK);
-      tft.setCursor(50, 164);
-      printf("%.2fC, %.2f hPa, %.2f%%", bme.temperature, bme.pressure / 100.0, bme.humidity);
-      tft.setCursor(50, 174);
-      printf("%.2f kOhms, ~%.2f m", bme.gas_resistance / 1000.0, altitude);
-    }
-  }
-
-  if (now >= altitude_update_time) {
-    altitude_update_time = now + 600000;
-    altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-  }
-
-  uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
-  tft.fillRect(50, 196, 190, 16, ILI9341_BLACK);
-  tft.setCursor(50, 196);
-  printf("%s %s %s %s %s",
-         (buttons & (1 << SEESAW_CENTER_BUTTON_PIN)) ? " " : "C",
-         (buttons & (1 << SEESAW_UP_BUTTON_PIN)) ? " " : "U",
-         (buttons & (1 << SEESAW_DOWN_BUTTON_PIN)) ? " " : "D",
-         (buttons & (1 << SEESAW_LEFT_BUTTON_PIN)) ? " " : "L",
-         (buttons & (1 << SEESAW_RIGHT_BUTTON_PIN)) ? " " : "R");
-
-
-  uint32_t val = abs(ss.getEncoderPosition());
-  val = constrain(val * 2, 0, 255);
-  if (now >= pixel_update_time) {
-    pixel_update_time = now + 100;
-
-    if (current_pixel == 0 || current_pixel == 7) {
-      pixel_direction *= -1;
-    }
-    pixels[current_pixel].show(0x000000);
-
-    current_pixel += pixel_direction;
-  }
-  pixels[current_pixel].show(wheel(val)); //write to the led
+  update_buttons_display(nullptr);
 }
