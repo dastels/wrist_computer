@@ -26,7 +26,8 @@
 
 
 Indicator::Indicator(seesaw_NeoPixel *ss, uint8_t index)
-  : _ss(ss), _index(index)
+  : _ss(ss)
+  , _index(index)
 {
 }
 
