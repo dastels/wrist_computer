@@ -52,6 +52,7 @@
 #include "sdcard_handler.h"
 #include "null_handler.h"
 #include "haptic.h"
+#include "sensor_readings.h"
 
 #define SEESAW_CENTER_BUTTON_PIN (24)
 #define SEESAW_UP_BUTTON_PIN      (3)
@@ -182,6 +183,7 @@ lv_task_t * accel_update_task;
 lv_task_t * mag_update_task;
 lv_task_t * bme_update_task;
 lv_task_t * buttons_update_task;
+lv_task_t * display_update_task;
 //------------------------------------------------------------------------------
 
 //==============================================================================
@@ -190,6 +192,45 @@ lv_task_t * buttons_update_task;
 
 char buffer[128]; // Since the LVGL formatting doesn't seem to support floats
 
+void update_light(lv_task_t *task)
+{
+  sensor_readings.light = analogRead(LIGHT_SENSOR);
+}
+
+void update_internal_temperature(lv_task_t *task)
+{
+  sensor_readings.internal_temperature = tempsensor.readTempC();
+}
+
+void update_acceleration(lv_task_t *task)
+{
+  sensors_event_t event;
+  accel.getEvent(&event);
+  sensor_readings.acceleration.x = event.acceleration.x;
+  sensor_readings.acceleration.y = event.acceleration.y;
+  sensor_readings.acceleration.z = event.acceleration.z;
+}
+
+void update_magnetic(lv_task_t *task)
+{
+  sensors_event_t event;
+  mag.getEvent(&event);
+  sensor_readings.magnetic.x = event.magnetic.x;
+  sensor_readings.magnetic.y = event.magnetic.y;
+  sensor_readings.magnetic.z = event.magnetic.z;
+}
+
+void update_bme(lv_task_t *task)
+{
+  if (bme.performReading()) {
+    sensor_readings.temperature = bme.temperature;
+    sensor_readings.pressure = bme.pressure / 100.0;
+    sensor_readings.humidity = bme.humidity;
+    sensor_readings.gas = bme.gas_resistance / 1000.0;
+    sensor_readings.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  }
+}
+
 void update_time_display(lv_task_t *task)
 {
   DateTime t = rtc.now();
@@ -197,45 +238,27 @@ void update_time_display(lv_task_t *task)
   lv_label_set_text(time_value_label, buffer);
 }
 
-void update_light_display(lv_task_t *task)
+void update_sensor_display(lv_task_t *task)
 {
-  sprintf(buffer, "%3d", analogRead(LIGHT_SENSOR));
+  sprintf(buffer, "%3d", sensor_readings.light);
   lv_label_set_text(light_value_label, buffer);
-}
 
-void update_temp_display(lv_task_t *task)
-{
-  sprintf(buffer, "%5.2fC", tempsensor.readTempC());
+  sprintf(buffer, "%5.2fC", sensor_readings.internal_temperature);
   lv_label_set_text_fmt(temp_value_label, buffer);
-}
 
-void update_accel_display(lv_task_t *task)
-{
-  sensors_event_t event;
-  accel.getEvent(&event);
-  sprintf(buffer, "(%.2f, %.2f, %.2f) m/s^2", event.acceleration.x, event.acceleration.y, event.acceleration.z);
+  sprintf(buffer, "(%.2f, %.2f, %.2f) m/s^2", sensor_readings.acceleration.x, sensor_readings.acceleration.y, sensor_readings.acceleration.z);
   lv_label_set_text(accel_value_label, buffer);
-}
 
-void update_mag_display(lv_task_t *task)
-{
-  sensors_event_t event;
-  mag.getEvent(&event);
-  sprintf(buffer, "(%.2f, %.2f, %.2f) uT", event.magnetic.x, event.magnetic.y, event.magnetic.z);
+  sprintf(buffer, "(%.2f, %.2f, %.2f) uT", sensor_readings.magnetic.x, sensor_readings.magnetic.y, sensor_readings.magnetic.z);
   lv_label_set_text(mag_value_label, buffer);
+
+  sprintf(buffer, "%.2fC, %.2f hPa, %.2f%%", sensor_readings.temperature, sensor_readings.pressure, sensor_readings.humidity);
+  lv_label_set_text(bme1_value_label, buffer);
+  sprintf(buffer, "%.2f kOhms, ~%.2f m", sensor_readings.gas, sensor_readings.altitude);
+  lv_label_set_text(bme2_value_label, buffer);
 }
 
-void update_bme_display(lv_task_t *task)
-{
-  if (bme.performReading()) {
-    sprintf(buffer, "%.2fC, %.2f hPa, %.2f%%", bme.temperature, bme.pressure / 100.0, bme.humidity);
-    lv_label_set_text(bme1_value_label, buffer);
-    sprintf(buffer, "%.2f kOhms, ~%.2f m", bme.gas_resistance / 1000.0, bme.readAltitude(SEALEVELPRESSURE_HPA));
-    lv_label_set_text(bme2_value_label, buffer);
-  }
-}
-
-void update_buttons_display(lv_task_t *task)
+void update_buttons_display()
 {
   uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
   if (buttons > 0) { // there seems to be some all 0 readings which are nonsensical
@@ -490,23 +513,26 @@ void setup() {
 
   static uint32_t user_data = 10;
 
+  light_update_task = lv_task_create(update_light, 2000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(light_update_task);
+
+  temp_update_task = lv_task_create(update_internal_temperature, 10000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(temp_update_task);
+
+  accel_update_task = lv_task_create(update_acceleration, 500, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(accel_update_task);
+
+  mag_update_task = lv_task_create(update_magnetic, 5000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(mag_update_task);
+
+  bme_update_task = lv_task_create(update_bme, 6000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(bme_update_task);
+
   time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_MID, &user_data);
   lv_task_ready(time_update_task);
 
-  light_update_task = lv_task_create(update_light_display, 1000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(light_update_task);
-
-  temp_update_task = lv_task_create(update_temp_display, 10000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(temp_update_task);
-
-  accel_update_task = lv_task_create(update_accel_display, 500, LV_TASK_PRIO_HIGH, &user_data);
-  lv_task_ready(accel_update_task);
-
-  mag_update_task = lv_task_create(update_mag_display, 5000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(mag_update_task);
-
-  bme_update_task = lv_task_create(update_bme_display, 5000, LV_TASK_PRIO_MID, &user_data);
-  lv_task_ready(bme_update_task);
+  display_update_task = lv_task_create(update_sensor_display, 1000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(display_update_task);
 }
 
 uint16_t count = 0;
@@ -533,5 +559,5 @@ void loop() {
   if (pos != old_pos) {
     pixels[0].show(wheel(constrain(abs(pos) * 2, 0, 255)));
   }
-  update_buttons_display(nullptr);
+  update_buttons_display();
 }
