@@ -35,7 +35,8 @@
 #include <WiFiNINA.h>
 
 #include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303_U.h>
+#include <Adafruit_LSM303DLH_Mag.h>
+#include <Adafruit_LSM303_Accel.h>
 #include <Adafruit_BME680.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_SPIFlash.h>
@@ -82,12 +83,14 @@ Adafruit_SPIFlash flash(&flashTransport);
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 RTC_DS3231 rtc;
 seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_LSM303_Accel_Unified accel(54321);
-Adafruit_LSM303_Mag_Unified mag(12345);
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
+Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
 Adafruit_DRV2605 haptic;
 uint32_t button_pin_mask = 0;
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
+
+SensorReadings sensor_readings;
 
 Logger *logger;
 
