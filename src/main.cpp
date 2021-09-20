@@ -46,6 +46,10 @@
 #include <lvgl.h>
 #include <TouchScreen.h>
 
+// #include <Audio.h>
+// #include "AudioSampleButton1.h"
+
+#include "defines.h"
 #include "indicator.h"
 #include "logging.h"
 #include "serial_handler.h"
@@ -53,29 +57,12 @@
 #include "null_handler.h"
 #include "haptic.h"
 #include "sensor_readings.h"
+#include "eeprom.h"
 
-#define SEESAW_CENTER_BUTTON_PIN (24)
-#define SEESAW_UP_BUTTON_PIN      (3)
-#define SEESAW_DOWN_BUTTON_PIN    (2)
-#define SEESAW_LEFT_BUTTON_PIN   (11)
-#define SEESAW_RIGHT_BUTTON_PIN  (25)
-#define SEESAW_NEOPIXEL_PIN      (15)
+#include "app.h"
+#include "stopwatch.h"
 
-#define RED_LED       (13)
-#define TFT_RESET     (24)
-#define TFT_BACKLIGHT (25)
-#define LIGHT_SENSOR  (A2)
-#define SD_CS         (32)
-#define SPKR_SHUTDOWN (50)
-
-#define TFT_ROTATION   (1) // Landscape orientation on PyPortal
-#define TFT_D0        (34) // Data bit 0 pin (MUST be on PORT byte boundary)
-#define TFT_WR        (26) // Write-strobe pin (CCL-inverted timer output)
-#define TFT_DC        (10) // Data/command pin
-#define TFT_CS        (11) // Chip-select pin
-#define TFT_RST       (24) // Reset pin
-#define TFT_RD         (9) // Read-strobe pin
-#define TFT_BACKLIGHT (25)
+LV_FONT_DECLARE(DSEG7);
 
 // ILI9341 with 8-bit parallel interface:
 Adafruit_ILI9341 tft(tft8bitbus, TFT_D0, TFT_WR, TFT_DC, TFT_CS, TFT_RST, TFT_RD);
@@ -83,7 +70,8 @@ Adafruit_FlashTransport_QSPI flashTransport(PIN_QSPI_SCK, PIN_QSPI_CS, PIN_QSPI_
 Adafruit_SPIFlash flash(&flashTransport);
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 RTC_DS3231 rtc;
-seesaw_NeoPixel ss(8, SEESAW_NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+seesaw_NeoPixel ss(8, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
+Eeprom eeprom(&ss);
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
@@ -92,25 +80,27 @@ uint32_t button_pin_mask = 0;
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
 
 SensorReadings sensor_readings;
+App *current_app = nullptr;
 
 Logger *logger;
 
 char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 #define SEALEVELPRESSURE_HPA (1013.25)
 
-#define YP (A4)  // must be an analog pin, use "An" notation!
-#define XM (A7)  // must be an analog pin, use "An" notation!
-#define YM (A6)   // can be a digital pin
-#define XP (A5)   // can be a digital pin
 TouchScreen ts(XP, YP, XM, YM, 300);
 Adafruit_LvGL_Glue glue;
 
-#define X_MIN  (750)
-#define X_MAX  (325)
-#define Y_MIN  (840)
-#define Y_MAX  (240)
-
 SdFat SD;
+
+//==============================================================================
+// Audio support
+
+// AudioPlayMemory          sample1;
+// AudioOutputAnalogStereo  audioOutput;
+// AudioConnection          patchCord1(sample1, 0, audioOutput, 1);
+// AudioConnection          patchCord2(sample1, 1, audioOutput, 0);
+
+
 
 void fail(void)
 {
