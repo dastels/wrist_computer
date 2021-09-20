@@ -135,7 +135,7 @@ void initialize_serial()
 void initialize_logging()
 {
   LoggingHandler *handler;
-  LoggingHandler *sd_handler = new SDCardHandler(SD_CS);
+  // LoggingHandler *sd_handler = new SDCardHandler(SD_CS);
   if (LOG_TO_SERIAL) {
     initialize_serial();
     handler = new SerialHandler();
@@ -144,9 +144,9 @@ void initialize_logging()
   }
   logger = Logger::get_logger(handler);
   logger->set_level(log_level_for(LOG_LEVEL));
-  if (sd_handler->initialized()) {
-    logger->add_handler(sd_handler);
-  }
+//   if (sd_handler->initialized()) {
+//     logger->add_handler(sd_handler);
+//   }
 }
 
 
