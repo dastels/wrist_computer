@@ -174,6 +174,8 @@ lv_task_t * mag_update_task;
 lv_task_t * bme_update_task;
 lv_task_t * buttons_update_task;
 lv_task_t * display_update_task;
+
+lv_task_t * app_update_task;
 //------------------------------------------------------------------------------
 
 //==============================================================================
@@ -248,25 +250,154 @@ void update_sensor_display(lv_task_t *task)
   lv_label_set_text(bme2_value_label, buffer);
 }
 
-void update_buttons_display()
+
+void update_buttons_display(uint32_t buttons)
 {
-  uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
-  if (buttons > 0) { // there seems to be some all 0 readings which are nonsensical
-    sprintf(buffer, "%s%s%s%s%s",
-            (buttons & (1 << SEESAW_CENTER_BUTTON_PIN)) ? "" : "C ",
-            (buttons & (1 << SEESAW_UP_BUTTON_PIN)) ? "" : "U ",
-            (buttons & (1 << SEESAW_DOWN_BUTTON_PIN)) ? "" : "D ",
-            (buttons & (1 << SEESAW_LEFT_BUTTON_PIN)) ? "" : "L ",
-            (buttons & (1 << SEESAW_RIGHT_BUTTON_PIN)) ? "" : "R");
-    lv_label_set_text(buttons_value_label, buffer);
+  sprintf(buffer, "%s%s%s%s%s",
+          (buttons & (1 << CENTER_BUTTON_PIN)) ? "" : "C ",
+          (buttons & (1 << UP_BUTTON_PIN)) ? "" : "U ",
+          (buttons & (1 << DOWN_BUTTON_PIN)) ? "" : "D ",
+          (buttons & (1 << LEFT_BUTTON_PIN)) ? "" : "L ",
+          (buttons & (1 << RIGHT_BUTTON_PIN)) ? "" : "R");
+  lv_label_set_text(buttons_value_label, buffer);
+}
+
+void update_app(lv_task_t *task)
+{
+  current_app->update();
+}
+
+
+uint32_t wheel(byte wheel_pos)
+{
+  wheel_pos = 255 - wheel_pos;
+  if (wheel_pos < 85) {
+    return ss.Color(255 - wheel_pos * 3, 0, wheel_pos * 3);
   }
+  if (wheel_pos < 170) {
+    wheel_pos -= 85;
+    return ss.Color(0, wheel_pos * 3, 255 - wheel_pos * 3);
+  }
+  wheel_pos -= 170;
+  return ss.Color(wheel_pos * 3, 255 - wheel_pos * 3, 0);
+}
+
+void sensor_display()
+{
+    //==============================================================================
+  // Build display elements for sensor display
+  //==============================================================================
+
+  time_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(time_value_label, 100, 16);
+  lv_label_set_text(time_value_label, "0000/00/00 00:00:00");
+  lv_obj_align(time_value_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
+
+  // Light
+  lv_obj_t *light_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(light_label, 84, 16);
+  lv_obj_set_pos(light_label, 0, 21);
+  lv_label_set_text(light_label, "Light:");
+
+  light_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(light_value_label, 84, 16);
+  lv_obj_set_pos(light_value_label, 90, 21);
+  //  lv_label_set_text(light_value_label, "");
+
+  // PyPortal temperature
+  lv_obj_t *temp_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(temp_label, 84, 16);
+  lv_obj_set_pos(temp_label, 0, 37);
+  lv_label_set_text(temp_label, "Temp:");
+
+  temp_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(temp_value_label, 84, 16);
+  lv_obj_set_pos(temp_value_label, 90, 37);
+  //  lv_label_set_text(temp_value_label, "");
+
+  // Accelerometer
+  lv_obj_t *accel_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(accel_label, 84, 16);
+  lv_obj_set_pos(accel_label, 0, 53);
+  lv_label_set_text(accel_label, "Accel:");
+
+  accel_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(accel_value_label, 84, 16);
+  lv_obj_set_pos(accel_value_label, 90, 53);
+  //  lv_label_set_text(accel_value_label, "");
+
+  // Magetometer
+  lv_obj_t *mag_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(mag_label, 84, 16);
+  lv_obj_set_pos(mag_label, 0, 69);
+  lv_label_set_text(mag_label, "Mag:");
+
+  mag_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(mag_value_label, 84, 16);
+  lv_obj_set_pos(mag_value_label, 90, 69);
+  //  lv_label_set_text(mag_value_label, "");
+
+  // BME temp/humidity/pressure(altitude)/gas
+  lv_obj_t *bme_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme_label, 84, 16);
+  lv_obj_set_pos(bme_label, 0, 85);
+  lv_label_set_text(bme_label, "BME:");
+
+  bme1_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme1_value_label, 84, 16);
+  lv_obj_set_pos(bme1_value_label, 90, 85);
+  //  lv_label_set_text(bme1_value_label, "");
+
+  bme2_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(bme2_value_label, 84, 16);
+  lv_obj_set_pos(bme2_value_label, 90, 101);
+  //  lv_label_set_text(bme2_value_label, "");
+
+  // Control pad buttons
+  lv_obj_t *buttons_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(buttons_label, 84, 16);
+  lv_obj_set_pos(buttons_label, 0, 117);
+  lv_label_set_text(buttons_label, "Buttons:");
+
+  buttons_value_label = lv_label_create(lv_scr_act(), NULL);
+  lv_obj_set_size(buttons_value_label, 84, 16);
+  lv_obj_set_pos(buttons_value_label, 90, 117);
+  //  lv_label_set_text(buttons_value_label, "");
+
+  //------------------------------------------------------------------------------
+  // Start display update tasks
+
+  static uint32_t user_data = 10;
+
+  light_update_task = lv_task_create(update_light, 2000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(light_update_task);
+
+  temp_update_task = lv_task_create(update_internal_temperature, 10000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(temp_update_task);
+
+  accel_update_task = lv_task_create(update_acceleration, 500, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(accel_update_task);
+
+  mag_update_task = lv_task_create(update_magnetic, 5000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(mag_update_task);
+
+  bme_update_task = lv_task_create(update_bme, 6000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(bme_update_task);
+
+  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(time_update_task);
+
+  display_update_task = lv_task_create(update_sensor_display, 1000, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(display_update_task);
+
+  pixels[0].show(wheel(0));
 }
 
 
 void setup() {
   boolean success = true;
 
-  //  initialize_logging();
+  initialize_logging();
 
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
@@ -323,12 +454,11 @@ void setup() {
     success = false;
   } else {
     button_pin_mask =
-      (1 << SEESAW_CENTER_BUTTON_PIN) |
-      (1 << SEESAW_UP_BUTTON_PIN) |
-      (1 << SEESAW_DOWN_BUTTON_PIN) |
-      (1 << SEESAW_LEFT_BUTTON_PIN) |
-      (1 << SEESAW_RIGHT_BUTTON_PIN);
-
+      (1 << CENTER_BUTTON_PIN) |
+      (1 << UP_BUTTON_PIN) |
+      (1 << DOWN_BUTTON_PIN) |
+      (1 << LEFT_BUTTON_PIN) |
+      (1 << RIGHT_BUTTON_PIN);
     lv_textarea_add_text(status_text, "PASSED\n");
     ss.pinModeBulk(button_pin_mask, INPUT_PULLUP);
     ss.show();
@@ -405,8 +535,8 @@ void setup() {
     fail();
   }
 
-  analogWriteResolution(12);
-  analogWrite(A0, 128);
+  // analogWriteResolution(12);
+  // analogWrite(A0, 128);
   pinMode(SPKR_SHUTDOWN, OUTPUT);
   digitalWrite(SPKR_SHUTDOWN, LOW);
 
@@ -415,138 +545,50 @@ void setup() {
   lv_obj_del(status_text);
   lv_obj_del(label);
 
-  //==============================================================================
-  // Build display elements for sensor display
-  //==============================================================================
-
-  time_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(time_value_label, 100, 16);
-  lv_label_set_text(time_value_label, "0000/00/00 00:00:00");
-  lv_obj_align(time_value_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
-
-  // Light
-  lv_obj_t *light_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(light_label, 84, 16);
-  lv_obj_set_pos(light_label, 0, 21);
-  lv_label_set_text(light_label, "Light:");
-
-  light_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(light_value_label, 84, 16);
-  lv_obj_set_pos(light_value_label, 90, 21);
-  lv_label_set_text(light_value_label, "");
-
-  // PyPortal temperature
-  lv_obj_t *temp_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(temp_label, 84, 16);
-  lv_obj_set_pos(temp_label, 0, 37);
-  lv_label_set_text(temp_label, "Temp:");
-
-  temp_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(temp_value_label, 84, 16);
-  lv_obj_set_pos(temp_value_label, 90, 37);
-  lv_label_set_text(temp_value_label, "");
-
-  // Accelerometer
-  lv_obj_t *accel_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(accel_label, 84, 16);
-  lv_obj_set_pos(accel_label, 0, 53);
-  lv_label_set_text(accel_label, "Accel:");
-
-  accel_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(accel_value_label, 84, 16);
-  lv_obj_set_pos(accel_value_label, 90, 53);
-  lv_label_set_text(accel_value_label, "");
-
-  // Magetometer
-  lv_obj_t *mag_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(mag_label, 84, 16);
-  lv_obj_set_pos(mag_label, 0, 69);
-  lv_label_set_text(mag_label, "Mag:");
-
-  mag_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(mag_value_label, 84, 16);
-  lv_obj_set_pos(mag_value_label, 90, 69);
-  lv_label_set_text(mag_value_label, "");
-
-  // BME temp/humidity/pressure(altitude)/gas
-  lv_obj_t *bme_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(bme_label, 84, 16);
-  lv_obj_set_pos(bme_label, 0, 85);
-  lv_label_set_text(bme_label, "BME:");
-
-  bme1_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(bme1_value_label, 84, 16);
-  lv_obj_set_pos(bme1_value_label, 90, 85);
-  lv_label_set_text(bme1_value_label, "");
-
-  bme2_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(bme2_value_label, 84, 16);
-  lv_obj_set_pos(bme2_value_label, 90, 101);
-  lv_label_set_text(bme2_value_label, "");
-
-  // Control pad buttons
-  lv_obj_t *buttons_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(buttons_label, 84, 16);
-  lv_obj_set_pos(buttons_label, 0, 117);
-  lv_label_set_text(buttons_label, "Buttons:");
-
-  buttons_value_label = lv_label_create(lv_scr_act(), NULL);
-  lv_obj_set_size(buttons_value_label, 84, 16);
-  lv_obj_set_pos(buttons_value_label, 90, 117);
-  lv_label_set_text(buttons_value_label, "");
+  current_app = new Stopwatch();
+  static uint32_t user_data = 10;
+  app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_MID, &user_data);
+  lv_task_ready(app_update_task);
 
   lv_task_handler();
-
-  //------------------------------------------------------------------------------
-  // Start display update tasks
-
-  static uint32_t user_data = 10;
-
-  light_update_task = lv_task_create(update_light, 2000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(light_update_task);
-
-  temp_update_task = lv_task_create(update_internal_temperature, 10000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(temp_update_task);
-
-  accel_update_task = lv_task_create(update_acceleration, 500, LV_TASK_PRIO_HIGH, &user_data);
-  lv_task_ready(accel_update_task);
-
-  mag_update_task = lv_task_create(update_magnetic, 5000, LV_TASK_PRIO_LOW, &user_data);
-  lv_task_ready(mag_update_task);
-
-  bme_update_task = lv_task_create(update_bme, 6000, LV_TASK_PRIO_MID, &user_data);
-  lv_task_ready(bme_update_task);
-
-  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_MID, &user_data);
-  lv_task_ready(time_update_task);
-
-  display_update_task = lv_task_create(update_sensor_display, 1000, LV_TASK_PRIO_MID, &user_data);
-  lv_task_ready(display_update_task);
-}
-
-uint16_t count = 0;
-
-uint32_t wheel(byte wheel_pos)
-{
-  wheel_pos = 255 - wheel_pos;
-  if (wheel_pos < 85) {
-    return ss.Color(255 - wheel_pos * 3, 0, wheel_pos * 3);
-  }
-  if (wheel_pos < 170) {
-    wheel_pos -= 85;
-    return ss.Color(0, wheel_pos * 3, 255 - wheel_pos * 3);
-  }
-  wheel_pos -= 170;
-  return ss.Color(wheel_pos * 3, 255 - wheel_pos * 3, 0);
 }
 
 int32_t old_pos = 0;
+uint32_t old_buttons = 0xFFFFFFFF;
+unsigned long button_read_time = 0;
 
 void loop() {
+  unsigned long now = millis();
+
+  // if (!sample1.isPlaying()) {
+  //   digitalWrite(SPKR_SHUTDOWN, LOW);
+  // }
   lv_task_handler(); // Call LittleVGL task handler periodically
   int32_t pos = ss.getEncoderPosition();
   if (pos != old_pos) {
+    old_pos = pos;
     pixels[0].show(wheel(constrain(abs(pos) * 2, 0, 255)));
+    current_app->encoder_changed(pos);
   }
-  update_buttons_display();
+  if (now >= button_read_time) {
+    button_read_time = now + 10;
+    uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
+    if (buttons != old_buttons) {
+      // update_buttons_display(buttons);
+      uint32_t mask = 0x00000001;
+      for (uint8_t pin = 0; pin < 32; pin++) {
+        if (!(buttons & mask) && (old_buttons & mask)) {
+          current_app->nav_button_pressed(pin);
+        } else if ((buttons & mask) && !(old_buttons & mask)) {
+          current_app->nav_button_released(pin);
+        }
+        mask <<= 1;
+      }
+      old_buttons = buttons;
+    }
+  // if (!(buttons & (1 << CENTER_BUTTON_PIN))) {
+  //   digitalWrite(SPKR_SHUTDOWN, HIGH);
+  //   sample1.play(AudioSampleButton1);
+  // }
+  }
 }
