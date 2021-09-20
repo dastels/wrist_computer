@@ -285,8 +285,6 @@ void setup() {
   pinMode(TFT_BACKLIGHT, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
 
-  printf_init(tft);
-
   tft.fillScreen(ILI9341_BLACK);
   tft.setTextSize(1);
   tft.setTextColor(ILI9341_WHITE);
@@ -294,6 +292,7 @@ void setup() {
 
     // Initialize glue, passing in address of display & touchscreen
   LvGLStatus status = glue.begin(&tft, &ts);
+
   if(status != LVGL_OK) {
     Serial.print("Glue error "); Serial.println((int)status);
     while(1);
