@@ -144,7 +144,7 @@ void Logger::_internal_log(LogLevel level, const char *format, va_list args)
     vsprintf(_buffer, format, args);
     for (int i = 0; i < MAX_NUMBER_OF_HANDLERS; i++) {
       if (_handlers[i]) {
-        _handlers[i]->emit(log_name_level_for(level), _buffer);
+        _handlers[i]->emit(log_name_for_level(level), _buffer);
       }
     }
   }
