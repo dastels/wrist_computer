@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Haptic encapsulation
+// Application menu
 //
 // The MIT License (MIT)
 //
@@ -24,23 +24,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __HAPTIC_H__
-#define __HAPTIC_H__
+#ifndef __APP_MENU_H__
+#define __APP_MENU_H__
 
-#include "Adafruit_DRV2605.h"
+#include "app.h"
+#include "lvgl.h"
 
-class Haptic
+class AppMenu
 {
-public:
-  Haptic();
-  bool begin();
-  int8_t  add_effect(uint8_t pattern[]);
-  void play(uint8_t id);
-private:
-  Adafruit_DRV2605 *_drv;
-  uint8_t _number_of_patterns;
-  uint8_t *_patterns[16];
-  uint8_t _loaded;
+ public:
+  AppMenu(lv_obj_t *window);
+  bool register_app(App *app);
+  void choose_app();
+ private:
+  void open();
+  void close();
+  static void event_handler(lv_obj_t * obj, lv_event_t event);
+  App *_apps[16];
+  uint8_t _number_of_apps;
+  lv_obj_t *_window;
+  lv_obj_t *_app_roller;
 };
 
 #endif

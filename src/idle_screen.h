@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Haptic encapsulation
+// Idle/background screen/app
 //
 // The MIT License (MIT)
 //
@@ -24,23 +24,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __HAPTIC_H__
-#define __HAPTIC_H__
+#ifndef __IDLE_SCREEN_H__
+#define __IDLE_SCREEN_H__
 
-#include "Adafruit_DRV2605.h"
+#include "app.h"
+#include "app_menu.h"
 
-class Haptic
+class IdleScreen: public App
 {
-public:
-  Haptic();
-  bool begin();
-  int8_t  add_effect(uint8_t pattern[]);
-  void play(uint8_t id);
-private:
-  Adafruit_DRV2605 *_drv;
-  uint8_t _number_of_patterns;
-  uint8_t *_patterns[16];
-  uint8_t _loaded;
+ public:
+  IdleScreen();
+  void update();
+  void nav_button_pressed(uint8_t button);
+  void nav_button_released(uint8_t button);
+  bool register_app(App *app);
+
+ private:
+  lv_obj_t *_window;
+  AppMenu *_app_menu;
 };
 
 #endif

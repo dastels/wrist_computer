@@ -35,6 +35,14 @@ App::~App()
 {
 }
 
+void App::activate()
+{
+}
+
+
+void App::deactivate()
+{
+}
 
 void App::encoder_changed(int32_t pos)
 {

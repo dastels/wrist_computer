@@ -34,10 +34,13 @@ class App
 public:
   App(const char *name);
   ~App();
+  virtual void activate();
+  virtual void deactivate();
   virtual void encoder_changed(int32_t pos);
   virtual void nav_button_pressed(uint8_t button);
   virtual void nav_button_released(uint8_t button);
   virtual void update();
+  virtual const char *get_name() { return _name; }
 private:
   const char *_name;
 };

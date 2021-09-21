@@ -59,6 +59,7 @@
 #include "sensor_readings.h"
 #include "eeprom.h"
 
+#include "idle_screen.h"
 #include "app.h"
 #include "stopwatch.h"
 
@@ -75,7 +76,8 @@ Eeprom eeprom(&ss);
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
-Adafruit_DRV2605 haptic;
+Haptic haptic;
+
 uint32_t button_pin_mask = 0;
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
 
@@ -116,12 +118,6 @@ void fail(void)
   }
 }
 
-
-// Override printf's putchar
-void _putchar(char character)
-{
-  tft.print(character);
-}
 
 
 void initialize_serial()
@@ -177,6 +173,20 @@ lv_task_t * display_update_task;
 
 lv_task_t * app_update_task;
 //------------------------------------------------------------------------------
+
+//==============================================================================
+// Haptic patterns
+//==============================================================================
+uint8_t stopwatch_start_haptic;
+uint8_t stopwatch_stop_haptic;
+
+void initialize_haptic_patterns()
+{
+  uint8_t stopwatch_start_pattern[] = {24, 0};
+  uint8_t stopwatch_stop_pattern[] = {34, 0};
+  stopwatch_start_haptic = haptic.add_effect(stopwatch_start_pattern);
+  stopwatch_stop_haptic = haptic.add_effect(stopwatch_stop_pattern);
+}
 
 //==============================================================================
 // Task functions
@@ -264,7 +274,9 @@ void update_buttons_display(uint32_t buttons)
 
 void update_app(lv_task_t *task)
 {
-  current_app->update();
+  if (current_app) {
+    current_app->update();
+  }
 }
 
 
@@ -394,40 +406,9 @@ void sensor_display()
 }
 
 
-void setup() {
-  boolean success = true;
-
-  initialize_logging();
-
-  pinMode(TFT_BACKLIGHT, OUTPUT);
-  digitalWrite(TFT_BACKLIGHT, HIGH);
-
-  pinMode(TFT_RESET, OUTPUT);
-  digitalWrite(TFT_RESET, HIGH);
-  delay(10);
-  digitalWrite(TFT_RESET, LOW);
-  delay(10);
-  digitalWrite(TFT_RESET, HIGH);
-  delay(10);
-
-  // Initialize display BEFORE glue setup
-  tft.begin();
-  tft.setRotation(TFT_ROTATION);
-  pinMode(TFT_BACKLIGHT, OUTPUT);
-  digitalWrite(TFT_BACKLIGHT, HIGH);
-
-  tft.fillScreen(ILI9341_BLACK);
-  tft.setTextSize(1);
-  tft.setTextColor(ILI9341_WHITE);
-  tft.setTextWrap(true);
-
-    // Initialize glue, passing in address of display & touchscreen
-  LvGLStatus status = glue.begin(&tft, &ts);
-
-  if(status != LVGL_OK) {
-    Serial.print("Glue error "); Serial.println((int)status);
-    while(1);
-  }
+void init_hardware()
+{
+  bool success = true;
 
   lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
   lv_label_set_text(label, "Hello PyPortal!");
@@ -534,18 +515,64 @@ void setup() {
   if (!success) {
     fail();
   }
+}
 
-  // analogWriteResolution(12);
-  // analogWrite(A0, 128);
+void setup() {
+  logger->debug("Setup()");
+  boolean success = true;
+
+  initialize_logging();
+
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  digitalWrite(TFT_BACKLIGHT, HIGH);
+
+  pinMode(TFT_RESET, OUTPUT);
+  digitalWrite(TFT_RESET, HIGH);
+  delay(10);
+  digitalWrite(TFT_RESET, LOW);
+  delay(10);
+  digitalWrite(TFT_RESET, HIGH);
+  delay(10);
+
+  // Initialize display BEFORE glue setup
+  tft.begin();
+  tft.setRotation(TFT_ROTATION);
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  digitalWrite(TFT_BACKLIGHT, HIGH);
+
+  tft.fillScreen(ILI9341_BLACK);
+  tft.setTextSize(1);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.setTextWrap(true);
+
+    // Initialize glue, passing in address of display & touchscreen
+  LvGLStatus status = glue.begin(&tft, &ts);
+
+  if(status != LVGL_OK) {
+    Serial.print("Glue error "); Serial.println((int)status);
+    while(1);
+  }
+
+  init_hardware();
+
+  if (haptic.begin()) {
+    initialize_haptic_patterns();
+  } else {
+    fail();
+  }
+
+
   pinMode(SPKR_SHUTDOWN, OUTPUT);
   digitalWrite(SPKR_SHUTDOWN, LOW);
 
   // Cleanup status display
-  delay(5000);
-  lv_obj_del(status_text);
-  lv_obj_del(label);
+  // lv_obj_del(status_text);
+  // lv_obj_del(label);
 
-  current_app = new Stopwatch();
+  IdleScreen *idle = new IdleScreen();
+  idle->register_app(new Stopwatch());
+  current_app = idle;
+
   static uint32_t user_data = 10;
   app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_MID, &user_data);
   lv_task_ready(app_update_task);

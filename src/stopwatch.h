@@ -27,9 +27,7 @@
 #ifndef __STOPWATCH_H__
 #define __STOPWATCH_H__
 
-#include <stdint.h>
-#include <lvgl.h>
-
+#include "lvgl.h"
 #include "app.h"
 
 // Stopwatch app
@@ -44,6 +42,8 @@ class Stopwatch: public App
 public:
   Stopwatch();
   ~Stopwatch();
+  void activate();
+  void deactivate();
   void start();
   void stop();
   void reset();

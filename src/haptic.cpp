@@ -25,19 +25,29 @@
 // THE SOFTWARE.
 
 #include "haptic.h"
+#include "logging.h"
+
+extern Logger *logger;
 
 Haptic::Haptic()
-  : _drv(Adafruit_DRV2605())
+  : _drv(new Adafruit_DRV2605())
   , _number_of_patterns(0)
   , _loaded(-1)
 {
-  _drv.begin();
-  _drv.selectLibrary(1);
-  _drv.setMode(DRV2605_MODE_INTTRIG);
 }
 
 
-uint8_t Haptic::add_effect(uint8_t pattern[])
+bool Haptic::begin()
+{
+  bool status = _drv->begin();
+  logger->debug("Haptic began -> %s", status ? "pass" : "fail");
+  if (status) {
+    _drv->setMode(DRV2605_MODE_INTTRIG);
+  }
+  return status;
+}
+
+int8_t Haptic::add_effect(uint8_t pattern[])
 {
   uint8_t length = 0;
   if (_number_of_patterns == 16) {
@@ -52,14 +62,16 @@ uint8_t Haptic::add_effect(uint8_t pattern[])
 
 void Haptic::play(uint8_t id)
 {
-  if (id != _loaded) {
-    _drv.selectLibrary(1);
-    uint8_t i = 0;
-    do {
-      _drv.setWaveform(i, _patterns[id][i]);
+  if (id <_number_of_patterns) {
+    if (id != _loaded) {
+      _drv->selectLibrary(1);
+      uint8_t i = 0;
+      do {
+        _drv->setWaveform(i, _patterns[id][i]);
+      }
+      while (_patterns[id][i++]);
+      _loaded = id;
     }
-    while (_patterns[id][i++]);
-    _loaded = id;
+    _drv->go();
   }
-  _drv.go();
 }

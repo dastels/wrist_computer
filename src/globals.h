@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Haptic encapsulation
+// Globals
 //
 // The MIT License (MIT)
 //
@@ -24,23 +24,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __HAPTIC_H__
-#define __HAPTIC_H__
+#include <stdint.h>
+#include <lvgl.h>
 
-#include "Adafruit_DRV2605.h"
+#include "eeprom.h"
+#include "logging.h"
+#include "haptic.h"
+#include "sensor_readings.h"
 
-class Haptic
-{
-public:
-  Haptic();
-  bool begin();
-  int8_t  add_effect(uint8_t pattern[]);
-  void play(uint8_t id);
-private:
-  Adafruit_DRV2605 *_drv;
-  uint8_t _number_of_patterns;
-  uint8_t *_patterns[16];
-  uint8_t _loaded;
-};
-
-#endif
+extern Logger *logger;
+extern Haptic haptic;
+extern Eeprom eeprom;
+extern SensorReadings sensor_readings;

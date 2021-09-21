@@ -25,15 +25,13 @@
 // THE SOFTWARE.
 
 #include "defines.h"
+#include "globals.h"
 #include "stopwatch.h"
-#include "eeprom.h"
-#include "logging.h"
 
 extern lv_font_t dseg7;
 
-extern Logger *logger;
-
-extern Eeprom eeprom;
+extern uint8_t stopwatch_start_haptic;
+extern uint8_t stopwatch_stop_haptic;
 
 #define BASIC_MODE     (0)
 #define ANIMATOR_MODE (1)
@@ -52,14 +50,15 @@ Stopwatch::Stopwatch()
   _mode = eeprom.get_stopwatch_mode();
   _fps = eeprom.get_frames_per_second();
 
-  logger->debug("mode: %d", _mode);
-  logger->debug("fps: %d", _fps);
-
   // build UI
   _window = lv_win_create(lv_scr_act(), NULL);
+  lv_obj_set_hidden(_window, true);
+
   lv_win_set_header_height(_window, 20);
   lv_win_title_set_alignment(_window, 1);
   lv_win_set_title(_window, "Stopwatch");
+  lv_obj_t *close_button = lv_win_add_btn_right(_window, LV_SYMBOL_CLOSE);
+  lv_obj_set_event_cb(close_button, lv_win_close_event_cb);
 
   _mode_label = lv_label_create(_window, NULL);
   lv_obj_set_size(_mode_label, 150, 16);
@@ -73,7 +72,6 @@ Stopwatch::Stopwatch()
   _time_label = lv_label_create(_window, NULL);
   lv_obj_set_size(_time_label, 200, 100);
   lv_obj_align(_time_label, _window, LV_ALIGN_CENTER, -100, 0);
-    //  lv_obj_set_pos(_time_label, 10, 40);
   lv_label_set_text(_time_label, "");
   static lv_style_t timer_style;
   lv_style_set_text_font(&timer_style, LV_STATE_DEFAULT, &dseg7);
@@ -85,13 +83,26 @@ Stopwatch::Stopwatch()
     _millis_per_frame = 1000.0 / (float)(fps_values[_fps]);
   }
 
+  reset();
   lv_task_handler();
 }
 
 
 Stopwatch::~Stopwatch()
 {
-  // cleaup UI
+  // cleanup UI
+}
+
+
+void Stopwatch::activate()
+{
+  lv_obj_set_hidden(_window, false);
+}
+
+
+void Stopwatch::deactivate()
+{
+  lv_obj_set_hidden(_window, true);
 }
 
 
@@ -146,6 +157,7 @@ void Stopwatch::update_display()
 void Stopwatch::start()
 {
   _running = true;
+  haptic.play(stopwatch_start_haptic);
   _start_time = millis();
 }
 
@@ -153,12 +165,12 @@ void Stopwatch::start()
 void Stopwatch::stop()
 {
   _running = false;
+  haptic.play(stopwatch_stop_haptic);
 }
 
 
 void Stopwatch::reset()
 {
-  stop();
   _hours = 0;
   _minutes = 0;
   _seconds = 0;
@@ -197,7 +209,9 @@ void Stopwatch::nav_button_pressed(uint8_t button)
   logger->debug("Pressed %d", button);
   switch (button) {
   case CENTER_BUTTON_PIN:
-    _center_pressed_time = millis();
+    if (!_running) {
+      _center_pressed_time = millis();
+    }
     break;
   case LEFT_BUTTON_PIN:
     if (!_running && _mode > 0) {
@@ -232,9 +246,7 @@ void Stopwatch::nav_button_released(uint8_t button)
   logger->debug("Released %d", button);
   switch (button) {
   case CENTER_BUTTON_PIN:
-    if (_center_pressed_time && !_running && (millis() - _center_pressed_time) > 1000) {
-      //      reset();
-    } else {
+    if (!_center_pressed_time || (millis() - _center_pressed_time) < 1000) {
       if (_running) {
         stop();
       } else {

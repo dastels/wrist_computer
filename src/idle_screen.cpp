@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Haptic encapsulation
+// Idle/background screen/app
 //
 // The MIT License (MIT)
 //
@@ -24,23 +24,46 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __HAPTIC_H__
-#define __HAPTIC_H__
+#include "defines.h"
+#include "idle_screen.h"
+#include "globals.h"
+#include "app_menu.h"
 
-#include "Adafruit_DRV2605.h"
-
-class Haptic
+IdleScreen::IdleScreen()
+  : App("Idle Screen")
 {
-public:
-  Haptic();
-  bool begin();
-  int8_t  add_effect(uint8_t pattern[]);
-  void play(uint8_t id);
-private:
-  Adafruit_DRV2605 *_drv;
-  uint8_t _number_of_patterns;
-  uint8_t *_patterns[16];
-  uint8_t _loaded;
-};
+  // build UI
+  _window = lv_win_create(lv_scr_act(), NULL);
+  lv_win_set_header_height(_window, 20);
+  lv_win_title_set_alignment(_window, 1);
+  lv_win_set_title(_window, "IDLE SCREEN");
+  _app_menu = new AppMenu(_window);
+}
 
-#endif
+bool IdleScreen::register_app(App *app)
+{
+  return _app_menu->register_app(app);
+}
+
+
+void IdleScreen::update()
+{
+}
+
+
+void IdleScreen::nav_button_pressed(uint8_t button)
+{
+}
+
+
+void IdleScreen::nav_button_released(uint8_t button)
+{
+  switch (button) {
+  case CENTER_BUTTON_PIN:
+    logger->debug("Center button released in IdleScreen");
+    _app_menu->choose_app();
+    break;
+  default:
+    break;
+  }
+}
