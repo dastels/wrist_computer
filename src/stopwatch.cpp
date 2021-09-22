@@ -58,7 +58,7 @@ Stopwatch::Stopwatch()
   lv_win_title_set_alignment(_window, 1);
   lv_win_set_title(_window, "Stopwatch");
   lv_obj_t *close_button = lv_win_add_btn_right(_window, LV_SYMBOL_CLOSE);
-  lv_obj_set_event_cb(close_button, lv_win_close_event_cb);
+  lv_obj_set_event_cb(close_button, App::close_event_handler);
 
   _mode_label = lv_label_create(_window, NULL);
   lv_obj_set_size(_mode_label, 150, 16);
@@ -91,18 +91,6 @@ Stopwatch::Stopwatch()
 Stopwatch::~Stopwatch()
 {
   // cleanup UI
-}
-
-
-void Stopwatch::activate()
-{
-  lv_obj_set_hidden(_window, false);
-}
-
-
-void Stopwatch::deactivate()
-{
-  lv_obj_set_hidden(_window, true);
 }
 
 

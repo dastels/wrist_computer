@@ -46,13 +46,17 @@ AppMenu::AppMenu(lv_obj_t *window)
 
 void AppMenu::open()
 {
+  logger->debug("Opening AppMenu");
   lv_obj_set_hidden(_app_roller, false);
+  lv_task_handler();
 }
 
 
 void AppMenu::close()
 {
+  logger->debug("Closing AppMenu");
   lv_obj_set_hidden(_app_roller, true);
+  lv_task_handler();
 }
 
 
@@ -73,7 +77,6 @@ void AppMenu::choose_app()
   options[0] = 0;
   char option_buf[32];
   for (int i = 0; i < _number_of_apps; i++) {
-    logger->debug("Adding %s to the menu", _apps[i]->get_name());
     if (i == _number_of_apps - 1) {
       sprintf(option_buf, "%s", _apps[i]->get_name());
     } else {
@@ -81,26 +84,22 @@ void AppMenu::choose_app()
     }
     strcat(options, option_buf);
   }
-  logger->debug("Built menu");
-  logger->debug("adding options: '%s'", options);
   lv_roller_set_options(_app_roller, options, LV_ROLLER_MODE_NORMAL);
-  logger->debug("added options");
   lv_roller_set_visible_row_count(_app_roller, max(4, _number_of_apps));
-  logger->debug("set row count");
-  lv_obj_set_hidden(_app_roller, false);
-  logger->debug("Menu should be visible");
+  open();
 }
 
 
 void AppMenu::event_handler(lv_obj_t * obj, lv_event_t event)
 {
-  if(event == LV_EVENT_VALUE_CHANGED) {
+  if (event == LV_EVENT_VALUE_CHANGED) {
     char buf[32];
     lv_roller_get_selected_str(obj, buf, sizeof(buf));
-    printf("Selected app: %s\n", buf);
+    logger->debug("Selected app: %s", buf);
     for (int i = 0; i < instance->_number_of_apps; i++) {
       if (strcmp(buf, instance->_apps[i]->get_name()) == 0) {
         current_app = instance->_apps[i];
+        logger->debug("Chose `%s`", current_app->get_name());
         instance->close();
         current_app->activate();
         return;

@@ -40,6 +40,13 @@ IdleScreen::IdleScreen()
   _app_menu = new AppMenu(_window);
 }
 
+
+void IdleScreen::deactivate()
+{
+  logger->debug("Trying to deactivate %s... ignoring", _name);
+}
+
+
 bool IdleScreen::register_app(App *app)
 {
   return _app_menu->register_app(app);

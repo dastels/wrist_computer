@@ -42,8 +42,6 @@ class Stopwatch: public App
 public:
   Stopwatch();
   ~Stopwatch();
-  void activate();
-  void deactivate();
   void start();
   void stop();
   void reset();
@@ -59,7 +57,6 @@ private:
   uint8_t _fps;
   float _millis_per_frame;
 
-  lv_obj_t *_window;
   lv_obj_t *_mode_label;
   lv_obj_t *_fps_label;
   lv_obj_t *_time_label;

@@ -28,6 +28,7 @@
 #define __APP_H__
 
 #include <stdint.h>
+#include <lvgl.h>
 
 class App
 {
@@ -40,8 +41,10 @@ public:
   virtual void nav_button_pressed(uint8_t button);
   virtual void nav_button_released(uint8_t button);
   virtual void update();
-  virtual const char *get_name() { return _name; }
-private:
+  const char *get_name() { return _name; }
+protected:
+  static void close_event_handler(lv_obj_t * obj, lv_event_t event);
+  lv_obj_t *_window;
   const char *_name;
 };
 

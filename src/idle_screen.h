@@ -34,6 +34,7 @@ class IdleScreen: public App
 {
  public:
   IdleScreen();
+  void deactivate();
   void update();
   void nav_button_pressed(uint8_t button);
   void nav_button_released(uint8_t button);

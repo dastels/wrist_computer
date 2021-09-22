@@ -24,7 +24,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include "globals.h"
 #include "app.h"
+
 
 App::App(const char *name)
   :_name(name)
@@ -37,11 +39,15 @@ App::~App()
 
 void App::activate()
 {
+  logger->debug("Activating %s", _name);
+   lv_obj_set_hidden(_window, false);
 }
 
 
 void App::deactivate()
 {
+  logger->debug("Deactivating %s", _name);
+  lv_obj_set_hidden(_window, true);
 }
 
 void App::encoder_changed(int32_t pos)
@@ -60,4 +66,11 @@ void App::nav_button_released(uint8_t button)
 
 
 void App::update() {
+}
+
+
+void App::close_event_handler(lv_obj_t * obj, lv_event_t event)
+{
+  current_app->deactivate();
+  current_app = idle;
 }

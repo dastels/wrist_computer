@@ -31,8 +31,11 @@
 #include "logging.h"
 #include "haptic.h"
 #include "sensor_readings.h"
+#include "app.h"
 
 extern Logger *logger;
 extern Haptic haptic;
 extern Eeprom eeprom;
 extern SensorReadings sensor_readings;
+extern App *idle;
+extern App *current_app;

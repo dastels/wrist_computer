@@ -83,6 +83,7 @@ Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), 
 
 SensorReadings sensor_readings;
 App *current_app = nullptr;
+IdleScreen *idle;
 
 Logger *logger;
 
@@ -569,7 +570,7 @@ void setup() {
   // lv_obj_del(status_text);
   // lv_obj_del(label);
 
-  IdleScreen *idle = new IdleScreen();
+  idle = new IdleScreen();
   idle->register_app(new Stopwatch());
   current_app = idle;
 
