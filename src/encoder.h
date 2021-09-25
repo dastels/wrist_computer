@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Globals
+// Nav pad support: encoder + U/D/L/R keypad
 //
 // The MIT License (MIT)
 //
@@ -24,21 +24,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#include <stdint.h>
-#include <lvgl.h>
 
-#include "eeprom.h"
-#include "logging.h"
-#include "haptic.h"
-#include "sensor_readings.h"
-#include "app.h"
-#include "idle_screen.h"
+#ifndef __ENCODER_H__
+#define __ENCODER_H__
 
-extern Logger *logger;
-extern Haptic haptic;
-extern Eeprom eeprom;
-extern SensorReadings sensor_readings;
-extern IdleScreen *idle;
-extern App *current_app;
-extern lv_indev_t *encoder_dev;
-extern lv_indev_t *navpad_dev;
+void initialize_nav_pad();
+
+#endif

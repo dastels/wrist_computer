@@ -30,12 +30,18 @@
 #include "app.h"
 #include "lvgl.h"
 
+class IdleScreen;
+
 class AppMenu
 {
+  friend IdleScreen;
  public:
   AppMenu(lv_obj_t *window);
   bool register_app(App *app);
   void choose_app();
+  // void up();
+  // void down();
+  // void enter();
  private:
   void open();
   void close();

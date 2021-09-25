@@ -73,4 +73,5 @@ void App::close_event_handler(lv_obj_t * obj, lv_event_t event)
 {
   current_app->deactivate();
   current_app = idle;
+  idle->activate();
 }

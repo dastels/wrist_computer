@@ -46,8 +46,13 @@ public:
   void stop();
   void reset();
   void update();
-  void nav_button_pressed(uint8_t button);
-  void nav_button_released(uint8_t button);
+  void activate();
+  void deactivate();
+  // handler() { return Stopwatch::event-handler; }
+  // void nav_button_pressed(uint8_t button);
+  // void nav_button_released(uint8_t button);
+  void handle(lv_obj_t * obj, lv_event_t event) { Stopwatch::event_handler(obj, event); }
+
 private:
   void set_mode(uint8_t mode);
   void set_fps(uint8_t fps);
@@ -68,7 +73,9 @@ private:
   uint8_t _seconds;
   uint8_t _hundredths;
   uint8_t _frames;
-  unsigned long _center_pressed_time;
+  lv_group_t * _group;
+
+  static void event_handler(lv_obj_t * obj, lv_event_t event);
 };
 
 #endif

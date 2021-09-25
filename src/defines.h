@@ -33,6 +33,12 @@
 #define LEFT_BUTTON_PIN   (11)
 #define RIGHT_BUTTON_PIN  (25)
 
+#define CENTER_BUTTON_MASK (1 << CENTER_BUTTON_PIN)
+#define UP_BUTTON_MASK     (1 << UP_BUTTON_PIN)
+#define DOWN_BUTTON_MASK   (1 << DOWN_BUTTON_PIN)
+#define LEFT_BUTTON_MASK   (1 << LEFT_BUTTON_PIN)
+#define RIGHT_BUTTON_MASK  (1 << RIGHT_BUTTON_PIN)
+
 #define NEOPIXEL_PIN      (15)
 
 #define RED_LED       (13)

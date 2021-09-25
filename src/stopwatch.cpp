@@ -33,6 +33,8 @@ extern lv_font_t dseg7;
 extern uint8_t stopwatch_start_haptic;
 extern uint8_t stopwatch_stop_haptic;
 
+Stopwatch *stopwatch_instance;
+
 #define BASIC_MODE     (0)
 #define ANIMATOR_MODE (1)
 const char *mode_names[] = {"Basic", "Animator"};
@@ -47,11 +49,17 @@ Stopwatch::Stopwatch()
   : App("Stopwatch")
   , _running(false)
 {
+  stopwatch_instance = this;
+
   _mode = eeprom.get_stopwatch_mode();
   _fps = eeprom.get_frames_per_second();
 
   // build UI
   _window = lv_win_create(lv_scr_act(), NULL);
+  // lv_obj_set_event_cb(_window, Stopwatch::event_handler);
+  lv_group_t * _group = lv_group_create();
+  lv_group_add_obj(_group, _window);
+
   lv_obj_set_hidden(_window, true);
 
   lv_win_set_header_height(_window, 20);
@@ -84,13 +92,30 @@ Stopwatch::Stopwatch()
   }
 
   reset();
-  lv_task_handler();
+  //lv_task_handler();
 }
 
 
 Stopwatch::~Stopwatch()
 {
   // cleanup UI
+}
+
+
+void Stopwatch::activate()
+{
+  App::activate();
+  reset();
+  // lv_indev_set_group(encoder_dev, _group);
+  // lv_indev_set_group(navpad_dev, _group);
+  // lv_indev_enable(encoder_dev, true);
+  // lv_indev_enable(navpad_dev, true);
+}
+
+
+void Stopwatch::deactivate()
+{
+  App::deactivate();
 }
 
 
@@ -171,77 +196,71 @@ void Stopwatch::reset()
 
 void Stopwatch::update()
 {
-  if (_center_pressed_time && (millis() - _center_pressed_time) > 1000) {
-    reset();
-    return;
-  }
-  if (!_running) {
-    return;
-  }
-
-  uint32_t interval = millis() - _start_time;
-  uint32_t subseconds = interval % 1000;
-  _hundredths = subseconds / 10;
-  _frames = (uint8_t)((float)subseconds / _millis_per_frame);
-  interval /= 1000;
-  _seconds = interval % 60;
-  interval /= 60;
-  _minutes = interval % 60;
-  interval /= 60;
-  _hours = interval & 0xFF;
-  update_display();
-}
-
-void Stopwatch::nav_button_pressed(uint8_t button)
-{
-  logger->debug("Pressed %d", button);
-  switch (button) {
-  case CENTER_BUTTON_PIN:
-    if (!_running) {
-      _center_pressed_time = millis();
-    }
-    break;
-  case LEFT_BUTTON_PIN:
-    if (!_running && _mode > 0) {
-      set_mode(_mode - 1);
-    }
-    break;
-  case RIGHT_BUTTON_PIN:
-    if (!_running && _mode < number_of_mode_values) {
-      set_mode(_mode + 1);
-    }
-    break;
-  case DOWN_BUTTON_PIN:
-    if (!_running && _mode == ANIMATOR_MODE) {
-      if (_fps > 0) {
-        set_fps(_fps - 1);
-      }
-    }
-    break;
-  case UP_BUTTON_PIN:
-    if (!_running && _mode == ANIMATOR_MODE) {
-      if (_fps < number_of_fps_values) {
-        set_fps(_fps + 1);
-      }
-    }
-    break;
+  if (_running) {
+    uint32_t interval = millis() - _start_time;
+    uint32_t subseconds = interval % 1000;
+    _hundredths = subseconds / 10;
+    _frames = (uint8_t)((float)subseconds / _millis_per_frame);
+    interval /= 1000;
+    _seconds = interval % 60;
+    interval /= 60;
+    _minutes = interval % 60;
+    interval /= 60;
+    _hours = interval & 0xFF;
+    update_display();
   }
 }
 
 
-void Stopwatch::nav_button_released(uint8_t button)
+void Stopwatch::event_handler(lv_obj_t * obj, lv_event_t event)
 {
-  logger->debug("Released %d", button);
-  switch (button) {
-  case CENTER_BUTTON_PIN:
-    if (!_center_pressed_time || (millis() - _center_pressed_time) < 1000) {
-      if (_running) {
-        stop();
-      } else {
-        start();
-      }
+  uint32_t *key_ptr;
+  logger->debug("StopWatch::event_handler");
+  logger->debug("Event: %d", event);
+
+  switch (event) {
+  case LV_EVENT_CLICKED:
+    if (stopwatch_instance->_running) {
+      stopwatch_instance->stop();
+    } else {
+      stopwatch_instance->start();
     }
-    _center_pressed_time = 0;
+    break;
+  case LV_EVENT_KEY:
+    key_ptr = (uint32_t*)(lv_event_get_data());
+    logger->debug("Key event: %d", *key_ptr);
+    switch (*key_ptr) {
+    case LV_KEY_LEFT:
+      logger->debug("LEFT");
+      if (!stopwatch_instance->_running && stopwatch_instance->_mode > 0) {
+        stopwatch_instance->set_mode(stopwatch_instance->_mode - 1);
+      }
+      break;
+    case LV_KEY_RIGHT:
+      logger->debug("RIGHT");
+      if (!stopwatch_instance->_running && stopwatch_instance->_mode < number_of_mode_values) {
+        stopwatch_instance->set_mode(stopwatch_instance->_mode + 1);
+      }
+      break;
+    case LV_KEY_DOWN:
+      logger->debug("DOWN");
+      if (!stopwatch_instance->_running && stopwatch_instance->_mode == ANIMATOR_MODE) {
+        if (stopwatch_instance->_fps > 0) {
+          stopwatch_instance->set_fps(stopwatch_instance->_fps - 1);
+        }
+      }
+      break;
+    case LV_KEY_UP:
+      logger->debug("UP");
+      if (!stopwatch_instance->_running && stopwatch_instance->_mode == ANIMATOR_MODE) {
+        if (stopwatch_instance->_fps < number_of_fps_values) {
+          stopwatch_instance->set_fps(stopwatch_instance->_fps + 1);
+        }
+      }
+      break;
+    default:
+      break;
+    }
     break;
   default:
     break;

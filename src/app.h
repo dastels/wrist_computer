@@ -30,6 +30,11 @@
 #include <stdint.h>
 #include <lvgl.h>
 
+// class App;
+
+// typedef void (App::*handler_t)(lv_obj_t * obj, lv_event_t event);
+
+
 class App
 {
 public:
@@ -41,7 +46,9 @@ public:
   virtual void nav_button_pressed(uint8_t button);
   virtual void nav_button_released(uint8_t button);
   virtual void update();
-  const char *get_name() { return _name; }
+  const char *name() { return _name; }
+  virtual void handle(lv_obj_t * obj, lv_event_t event) {}
+  //  virtual handler_t *handler();
 protected:
   static void close_event_handler(lv_obj_t * obj, lv_event_t event);
   lv_obj_t *_window;

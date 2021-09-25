@@ -58,6 +58,7 @@
 #include "haptic.h"
 #include "sensor_readings.h"
 #include "eeprom.h"
+#include "encoder.h"
 
 #include "idle_screen.h"
 #include "app.h"
@@ -78,7 +79,8 @@ Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
 Haptic haptic;
 
-uint32_t button_pin_mask = 0;
+uint32_t button_pin_mask = (1 << CENTER_BUTTON_PIN) | (1 << UP_BUTTON_PIN) | (1 << DOWN_BUTTON_PIN) | (1 << LEFT_BUTTON_PIN) | (1 << RIGHT_BUTTON_PIN);
+
 Indicator pixels[8] = {Indicator(&ss, 0), Indicator(&ss, 1), Indicator(&ss, 2), Indicator(&ss, 3), Indicator(&ss, 4), Indicator(&ss, 5), Indicator(&ss, 6), Indicator(&ss, 7)};
 
 SensorReadings sensor_readings;
@@ -435,12 +437,6 @@ void init_hardware()
     lv_textarea_add_text(status_text, "FAILED\n");
     success = false;
   } else {
-    button_pin_mask =
-      (1 << CENTER_BUTTON_PIN) |
-      (1 << UP_BUTTON_PIN) |
-      (1 << DOWN_BUTTON_PIN) |
-      (1 << LEFT_BUTTON_PIN) |
-      (1 << RIGHT_BUTTON_PIN);
     lv_textarea_add_text(status_text, "PASSED\n");
     ss.pinModeBulk(button_pin_mask, INPUT_PULLUP);
     ss.show();
@@ -513,6 +509,8 @@ void init_hardware()
   }
   lv_task_handler();
 
+  initialize_nav_pad();
+
   if (!success) {
     fail();
   }
@@ -573,6 +571,7 @@ void setup() {
   idle = new IdleScreen();
   idle->register_app(new Stopwatch());
   current_app = idle;
+  idle->activate();
 
   static uint32_t user_data = 10;
   app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_MID, &user_data);
@@ -581,42 +580,7 @@ void setup() {
   lv_task_handler();
 }
 
-int32_t old_pos = 0;
-uint32_t old_buttons = 0xFFFFFFFF;
-unsigned long button_read_time = 0;
-
 void loop() {
   unsigned long now = millis();
-
-  // if (!sample1.isPlaying()) {
-  //   digitalWrite(SPKR_SHUTDOWN, LOW);
-  // }
   lv_task_handler(); // Call LittleVGL task handler periodically
-  int32_t pos = ss.getEncoderPosition();
-  if (pos != old_pos) {
-    old_pos = pos;
-    pixels[0].show(wheel(constrain(abs(pos) * 2, 0, 255)));
-    current_app->encoder_changed(pos);
-  }
-  if (now >= button_read_time) {
-    button_read_time = now + 10;
-    uint32_t buttons = ss.digitalReadBulk(button_pin_mask);
-    if (buttons != old_buttons) {
-      // update_buttons_display(buttons);
-      uint32_t mask = 0x00000001;
-      for (uint8_t pin = 0; pin < 32; pin++) {
-        if (!(buttons & mask) && (old_buttons & mask)) {
-          current_app->nav_button_pressed(pin);
-        } else if ((buttons & mask) && !(old_buttons & mask)) {
-          current_app->nav_button_released(pin);
-        }
-        mask <<= 1;
-      }
-      old_buttons = buttons;
-    }
-  // if (!(buttons & (1 << CENTER_BUTTON_PIN))) {
-  //   digitalWrite(SPKR_SHUTDOWN, HIGH);
-  //   sample1.play(AudioSampleButton1);
-  // }
-  }
 }
