@@ -188,8 +188,9 @@ uint8_t stopwatch_stop_haptic;
 void initialize_haptic_patterns()
 {
   uint8_t stopwatch_start_pattern[] = {24, 0};
-  uint8_t stopwatch_stop_pattern[] = {34, 0};
   stopwatch_start_haptic = haptic.add_effect(stopwatch_start_pattern);
+
+  uint8_t stopwatch_stop_pattern[] = {34, 0};
   stopwatch_stop_haptic = haptic.add_effect(stopwatch_stop_pattern);
 }
 
