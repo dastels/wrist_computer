@@ -126,8 +126,7 @@ void AppMenu::event_handler(lv_obj_t * obj, lv_event_t event)
   case LV_EVENT_KEY:
     key_ptr = (uint32_t*)(lv_event_get_data());
     switch (*key_ptr) {
-    case LV_KEY_ESC:
-    case LV_KEY_LEFT:           // cancel app selection and return to idle screen
+    case LV_KEY_ESC:            // cancel app selection and return to idle screen
       app_menu_instance->close();
       idle->activate();
       break;
