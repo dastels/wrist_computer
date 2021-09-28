@@ -801,10 +801,10 @@ static void indev_encoder_proc(lv_indev_t * i, lv_indev_data_t * data)
         else {
             int32_t s;
             if(data->enc_diff < 0) {
-                for(s = 0; s < -data->enc_diff; s++) lv_group_focus_prev(g);
+              for(s = 0; s < -data->enc_diff; s++) lv_group_send_data(g, LV_KEY_PREV);
             }
             else if(data->enc_diff > 0) {
-                for(s = 0; s < data->enc_diff; s++) lv_group_focus_next(g);
+              for(s = 0; s < data->enc_diff; s++) lv_group_send_data(g, LV_KEY_NEXT);
             }
         }
     }
