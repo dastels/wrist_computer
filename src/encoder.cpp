@@ -113,6 +113,9 @@ bool navpad_read(lv_indev_drv_t * drv, lv_indev_data_t*data)
     key_change_t *key_change = keys;
     keys = keys->next;
     switch (key_change->key) {
+    case CANCEL_BUTTON_PIN:
+      data->key = LV_KEY_ESC;
+      break;
     case UP_BUTTON_PIN:
       data->key = LV_KEY_UP;
       break;

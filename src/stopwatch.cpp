@@ -230,6 +230,9 @@ void Stopwatch::event_handler(lv_obj_t * obj, lv_event_t event)
     key_ptr = (uint32_t*)(lv_event_get_data());
     logger->debug("Key event: %d", *key_ptr);
     switch (*key_ptr) {
+    case LV_KEY_ESC:
+      App::close_event_handler(nullptr, 0);
+      break;
     case LV_KEY_LEFT:
       logger->debug("LEFT");
       if (!stopwatch_instance->_running && stopwatch_instance->_mode > 0) {
