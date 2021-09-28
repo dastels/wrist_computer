@@ -60,9 +60,11 @@
 #include "eeprom.h"
 #include "encoder.h"
 
+// app stuff
 #include "idle_screen.h"
 #include "app.h"
 #include "stopwatch.h"
+#include "alarm.h"
 
 LV_FONT_DECLARE(DSEG7);
 
@@ -570,6 +572,7 @@ void setup() {
 
   idle = new IdleScreen();
   idle->register_app(new Stopwatch());
+  idle->register_app(new Alarm());
   current_app = idle;
   idle->activate();
 
