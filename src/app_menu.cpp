@@ -54,7 +54,7 @@ AppMenu::AppMenu(lv_obj_t *window)
 
 void AppMenu::open()
 {
-  logger->debug("Opening AppMenu");
+  // logger->debug("Opening AppMenu");
   lv_obj_set_hidden(_app_roller, false);
   lv_event_send(_app_roller, LV_EVENT_FOCUSED, NULL);
   lv_task_handler();
@@ -98,37 +98,18 @@ void AppMenu::choose_app()
   open();
 }
 
-//LV_ROLLER_PART_SELECTED
-
-// void AppMenu::up()
-// {
-//   key_data = LV_KEY_UP;
-//   lv_event_send(_app_roller, LV_EVENT_KEY, &key_data);
-// }
-
-
-// void AppMenu::down()
-// {
-//   key_data = LV_KEY_DOWN;
-//   lv_event_send(_app_roller, LV_EVENT_KEY, &key_data);
-// }
-
-
-// void AppMenu::enter()
-// {
-//   logger->debug("appMenu::enter");
-//   key_data = LV_KEY_ENTER;
-//   lv_event_send(_app_roller, LV_EVENT_KEY, &key_data);
-// }
-
 
 void AppMenu::event_handler(lv_obj_t * obj, lv_event_t event)
 {
+  uint32_t *key_ptr;
+  char buf[32];
+  uint16_t selected;
+
   logger->debug("AppMenu::event_handler");
   logger->debug("Event: %d", event);
 
-  if (event == LV_EVENT_CLICKED) {
-    char buf[32];
+  switch (event) {
+  case LV_EVENT_CLICKED:
     lv_roller_get_selected_str(app_menu_instance->_app_roller, buf, sizeof(buf));
     logger->debug("Selected app: %s", buf);
     for (int i = 0; i < app_menu_instance->_number_of_apps; i++) {
@@ -141,5 +122,32 @@ void AppMenu::event_handler(lv_obj_t * obj, lv_event_t event)
         return;
       }
     }
+    break;
+  case LV_EVENT_KEY:
+    key_ptr = (uint32_t*)(lv_event_get_data());
+    switch (*key_ptr) {
+    case LV_KEY_LEFT:           // cancel app selection and return to idle screen
+      app_menu_instance->close();
+      idle->activate();
+      break;
+    case LV_KEY_PREV:
+    case LV_KEY_UP:
+      selected = lv_roller_get_selected(app_menu_instance->_app_roller);
+      if (selected > 0) {
+        lv_roller_set_selected(app_menu_instance->_app_roller, selected - 1, LV_ANIM_ON);
+      }
+      break;
+    case LV_KEY_NEXT:
+    case LV_KEY_DOWN:
+      selected = lv_roller_get_selected(app_menu_instance->_app_roller);
+      if (selected < app_menu_instance->_number_of_apps) {
+        lv_roller_set_selected(app_menu_instance->_app_roller, selected + 1, LV_ANIM_ON);
+      }
+      break;
+    default:
+      break;
+    }
+  default:
+    break;
   }
 }

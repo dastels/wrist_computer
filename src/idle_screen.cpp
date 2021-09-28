@@ -45,6 +45,8 @@ IdleScreen::IdleScreen()
   _app_menu = new AppMenu(_window);
   _group = lv_group_create();
   lv_group_add_obj(_group, _window);
+  lv_indev_set_group(encoder_dev, _group);
+  lv_indev_set_group(navpad_dev, _group);
   lv_indev_enable(encoder_dev, true);
   lv_indev_enable(navpad_dev, true);
 }
@@ -53,8 +55,6 @@ IdleScreen::IdleScreen()
 void IdleScreen::activate()
 {
   _choosing_app = false;
-  lv_indev_set_group(encoder_dev, _group);
-  lv_indev_set_group(navpad_dev, _group);
 }
 
 
@@ -75,61 +75,15 @@ void IdleScreen::update()
 }
 
 
-// void IdleScreen::encoder_changed(int32_t pos)
-// {
-//   if (_choosing_app) {
-//     if (pos > _old_encoder_pos) {
-//       _app_menu->down();
-//     } else {
-//       _app_menu->up();
-//     }
-//   }
-//   _old_encoder_pos = pos;
-// }
-
-
-// void IdleScreen::nav_button_pressed(uint8_t button)
-// {
-// }
-
-
-// void IdleScreen::nav_button_released(uint8_t button)
-// {
-//   switch (button) {
-//   case CENTER_BUTTON_PIN:
-//     if (_choosing_app) {
-//       _app_menu->enter();
-//     } else {
-//       logger->debug("Center button released in IdleScreen");
-//       _choosing_app = true;
-//       _app_menu->choose_app();
-//     }
-//     break;
-//   case UP_BUTTON_PIN:
-//     if (_choosing_app) {
-//       _app_menu->up();
-//     }
-//     break;
-//   case DOWN_BUTTON_PIN:
-//     if (_choosing_app) {
-//       _app_menu->down();
-//     }
-//     break;
-//   default:
-//     break;
-//   }
-// }
-
-
 void IdleScreen::event_handler(lv_obj_t * obj, lv_event_t event)
 {
-  logger->debug("IdleScreen::event_handler");
-  logger->debug("Event: %d", event);
+  // logger->debug("IdleScreen::event_handler");
+  // logger->debug("Event: %d", event);
   if (idle->choosing_app()) {   // send to the app chooser?
-    logger->debug("Passing event to Appmenu");
+    // logger->debug("Passing event to Appmenu");
     AppMenu::event_handler(obj, event);
   } else if (current_app != idle) { // send to the active app?
-    logger->debug("Passing event to %s", current_app->name());
+    // logger->debug("Passing event to %s", current_app->name());
     current_app->handle(obj, event);
   } else {                      // handle it here
     // lv_event_t code = lv_event_get_code(event);
