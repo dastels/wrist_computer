@@ -43,7 +43,6 @@ const uint8_t number_of_mode_values = 2;
 const uint8_t fps_values[] = {12, 18, 24, 32};
 const uint8_t number_of_fps_values = 4;
 
-char strbuf[64];
 
 Stopwatch::Stopwatch()
   : App("Stopwatch")
@@ -126,8 +125,8 @@ void Stopwatch::set_mode(uint8_t mode) {
     eeprom.set_stopwatch_mode(mode);
     _mode = mode;
   }
-  sprintf(strbuf, "%s Mode", mode_names[_mode]);
-  lv_label_set_text(_mode_label, strbuf);
+  sprintf(_strbuf, "%s Mode", mode_names[_mode]);
+  lv_label_set_text(_mode_label, _strbuf);
   if (_mode == BASIC_MODE) {
     lv_label_set_text(_fps_label, "");
   } else {
@@ -139,8 +138,8 @@ void Stopwatch::set_mode(uint8_t mode) {
 
 void Stopwatch::show_fps()
 {
-  sprintf(strbuf, "%02d fps", fps_values[_fps]);
-  lv_label_set_text(_fps_label, strbuf);
+  sprintf(_strbuf, "%02d fps", fps_values[_fps]);
+  lv_label_set_text(_fps_label, _strbuf);
 }
 
 
@@ -159,11 +158,11 @@ void Stopwatch::set_fps(uint8_t fps) {
 void Stopwatch::update_display()
 {
   if (_mode == BASIC_MODE) {
-    sprintf(strbuf, "%02d:%02d:%02d.%02d", _hours, _minutes, _seconds, _hundredths);
+    sprintf(_strbuf, "%02d:%02d:%02d.%02d", _hours, _minutes, _seconds, _hundredths);
   } else {
-    sprintf(strbuf, "%02d:%02d:%02d  %02d", _hours, _minutes, _seconds, _frames);
+    sprintf(_strbuf, "%02d:%02d:%02d  %02d", _hours, _minutes, _seconds, _frames);
   }
-  lv_label_set_text(_time_label, strbuf);
+  lv_label_set_text(_time_label, _strbuf);
 }
 
 
