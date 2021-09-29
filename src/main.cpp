@@ -63,8 +63,9 @@
 // app stuff
 #include "idle_screen.h"
 #include "app.h"
-#include "stopwatch.h"
 #include "alarm.h"
+#include "stopwatch.h"
+#include "timer.h"
 
 LV_FONT_DECLARE(DSEG7);
 
@@ -429,8 +430,9 @@ void setup() {
   // lv_obj_del(label);
 
   idle = new IdleScreen();
-  idle->register_app(new Stopwatch());
   idle->register_app(new Alarm());
+  idle->register_app(new Stopwatch());
+  idle->register_app(new Timer());
   current_app = idle;
   idle->activate();
 
