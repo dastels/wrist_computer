@@ -48,6 +48,7 @@ public:
   void update();
   void activate();
   void deactivate();
+  void handle(lv_obj_t * obj, lv_event_t event) { Alarm::event_handler(obj, event); }
 
 private:
   void update_display();
