@@ -24,6 +24,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+// System includes
 #include <Arduino.h>
 #include <seesaw_neopixel.h>
 #include <LibPrintf.h>
@@ -34,6 +35,7 @@
 #include <SdFat.h>
 #include <WiFiNINA.h>
 
+// Sensor includes
 #include <Adafruit_Sensor.h>
 #include <Adafruit_LSM303DLH_Mag.h>
 #include <Adafruit_LSM303_Accel.h>
@@ -42,13 +44,12 @@
 #include <Adafruit_SPIFlash.h>
 #include <Adafruit_ADT7410.h>
 
+// Screen includes
 #include <Adafruit_LvGL_Glue.h> // Always include this BEFORE lvgl.h!
 #include <lvgl.h>
 #include <TouchScreen.h>
 
-// #include <Audio.h>
-// #include "AudioSampleButton1.h"
-
+// Local includes
 #include "defines.h"
 #include "secrets.h"
 #include "indicator.h"
@@ -61,7 +62,7 @@
 #include "eeprom.h"
 #include "encoder.h"
 
-// app stuff
+// App includes
 #include "idle_screen.h"
 #include "app.h"
 #include "alarm.h"
@@ -80,7 +81,6 @@ Adafruit_SPIFlash flash(&flashTransport);
 Adafruit_ADT7410 tempsensor = Adafruit_ADT7410();
 RTC_DS3231 rtc;
 seesaw_NeoPixel ss(8, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
-Eeprom eeprom(&ss);
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
@@ -453,7 +453,6 @@ void enable_sensor_tasks()
 
 void setup() {
   logger->debug("Setup()");
-  boolean success = true;
 
   initialize_logging();
 

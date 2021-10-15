@@ -331,8 +331,6 @@ bool Weather::fetch_weather()
       strbuf[chars_read] = 0;
       logger->debug("Read %d characters", chars_read);
       logger->debug("data length: %d", strlen(strbuf));
-      // logger->debug("Got weather: %s", strbuf);
-      // logger->debug("HERE!");
       return true;
     } else {
       logger->debug("Got no data");
