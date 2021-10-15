@@ -104,12 +104,8 @@ Settings::Settings()
 
   _controls[control_index++] = _day_roller;
 
-  lv_obj_t *slash_label = lv_label_create(_window, NULL);
-  lv_obj_align(slash_label, _day_roller, LV_ALIGN_OUT_RIGHT_MID, 3, 0);
-  lv_label_set_text(slash_label, "/");
-
   _month_roller = lv_roller_create(_window, NULL);
-  lv_obj_align(_month_roller, _day_roller, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+  lv_obj_align(_month_roller, _day_roller, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
   lv_roller_set_auto_fit(_month_roller, true);
   lv_roller_set_options(_month_roller, "Jan\nFeb\nMar\nApr\nMay\nJun\nJul\nAug\nSep\nOct\nNov\nDec", LV_ROLLER_MODE_NORMAL);
   lv_roller_set_visible_row_count(_month_roller, 3);
@@ -118,12 +114,8 @@ Settings::Settings()
 
   _controls[control_index++] = _month_roller;
 
-  slash_label = lv_label_create(_window, NULL);
-  lv_obj_align(slash_label, _month_roller, LV_ALIGN_OUT_RIGHT_MID, 3, 0);
-  lv_label_set_text(slash_label, "/");
-
   _year_roller = lv_roller_create(_window, NULL);
-  lv_obj_align(_year_roller, _month_roller, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+  lv_obj_align(_year_roller, _month_roller, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
   lv_roller_set_auto_fit(_year_roller, true);
   strbuf[0] = 0;
   for (int i = 2020; i < 2050; i++) {
@@ -143,10 +135,14 @@ Settings::Settings()
   lv_obj_align(silent_label, _window, LV_ALIGN_IN_LEFT_MID, 5, 55);
   lv_label_set_text(silent_label, "Silent");
 
-  lv_obj_t *_silence_switch = lv_switch_create(_window, NULL);
+  _silence_switch = lv_switch_create(_window, NULL);
   lv_obj_align(_silence_switch, silent_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
   lv_obj_set_event_cb(_silence_switch, Settings::set_silence);
-
+  if (silent) {
+    lv_switch_on(_silence_switch, LV_ANIM_OFF);
+  } else {
+    lv_switch_off(_silence_switch, LV_ANIM_OFF);
+  }
   _controls[control_index++] = _silence_switch;
 
   _number_of_controls = 6;
@@ -163,6 +159,7 @@ Settings::~Settings()
 void Settings::activate()
 {
   App::activate();
+  _focussed_control = 0;
 }
 
 
@@ -217,7 +214,9 @@ void Settings::set_date(lv_obj_t * obj, lv_event_t event)
 void Settings::set_silence(lv_obj_t * obj, lv_event_t event)
 {
   if (event == LV_EVENT_VALUE_CHANGED) {
-   silent = lv_switch_get_state(settings_instance->_silence_switch);
+    logger->debug("Settings::set_silence);
+    silent = lv_switch_get_state(settings_instance->_silence_switch);
+    eeprom.set_silent(silent);
   }
 }
 
@@ -239,6 +238,7 @@ void Settings::event_handler(lv_obj_t * obj, lv_event_t event)
 
   switch (event) {
   case LV_EVENT_CLICKED:        // toggle switches
+    logger->debug("CLICK");
     if (is_switch) {
       lv_switch_toggle(focussed_control, LV_ANIM_ON);
       lv_event_send(focussed_control, LV_EVENT_VALUE_CHANGED, NULL);
