@@ -37,6 +37,8 @@ class Eeprom
   void set_stopwatch_mode(uint8_t mode);
   uint8_t get_frames_per_second();
   void set_frames_per_second(uint8_t fps);
+  bool get_silent();
+  void set_silent(bool value);
  private:
   Adafruit_seesaw *_ss;
 };

@@ -86,7 +86,8 @@ Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
 Haptic haptic;
 
-bool silent = false;
+Eeprom eeprom(&ss);
+bool silent = false; //eeprom.get_silent();
 
 uint32_t button_pin_mask = (1 << CENTER_BUTTON_PIN) | (1 << CANCEL_BUTTON_PIN) | (1 << UP_BUTTON_PIN) | (1 << DOWN_BUTTON_PIN) | (1 << LEFT_BUTTON_PIN) | (1 << RIGHT_BUTTON_PIN);
 
@@ -538,6 +539,9 @@ void setup() {
   init_sensor_tasks();
 
   logger->debug("Tasks created");
+
+  bool silent = eeprom.get_silent();
+
 }
 
 

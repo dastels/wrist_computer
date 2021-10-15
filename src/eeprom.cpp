@@ -28,7 +28,8 @@
 
 // Data addresses
 #define FRAMES_PER_SECOND (0)
-#define STOPWATCH_MODE (1)
+#define STOPWATCH_MODE    (1)
+#define SILENT_SETTING    (2)
 
 Eeprom::Eeprom(Adafruit_seesaw *ss)
   : _ss(ss)
@@ -57,4 +58,16 @@ uint8_t Eeprom::get_frames_per_second()
 void Eeprom::set_frames_per_second(uint8_t fps)
 {
   _ss->EEPROMWrite8(FRAMES_PER_SECOND, fps);
+}
+
+
+bool Eeprom::get_silent()
+{
+  return _ss->EEPROMRead8(SILENT_SETTING) != 0;
+}
+
+
+void Eeprom::set_silent(bool value)
+{
+  _ss->EEPROMWrite8(SILENT_SETTING, value ? 1 : 0);
 }
