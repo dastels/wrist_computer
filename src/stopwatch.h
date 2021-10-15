@@ -45,7 +45,7 @@ public:
   void start();
   void stop();
   void reset();
-  void update();
+  void update(unsigned long now);
   void activate();
   void deactivate();
   // handler() { return Stopwatch::event-handler; }
@@ -74,8 +74,6 @@ private:
   uint8_t _hundredths;
   uint8_t _frames;
   lv_group_t * _group;
-  char _strbuf[64];
-
 
   static void event_handler(lv_obj_t * obj, lv_event_t event);
 };

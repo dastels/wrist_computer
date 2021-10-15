@@ -28,7 +28,8 @@
 #include "globals.h"
 #include "timer.h"
 
-extern lv_font_t dseg7;
+extern lv_font_t dseg7_32;
+extern uint8_t timer_ring_haptic;
 
 Timer *timer_instance;
 
@@ -41,8 +42,6 @@ Timer::Timer()
 
   // build UI
   _window = lv_win_create(lv_scr_act(), NULL);
-  lv_group_t * _group = lv_group_create();
-  lv_group_add_obj(_group, _window);
 
   lv_obj_set_hidden(_window, true);
 
@@ -53,27 +52,24 @@ Timer::Timer()
   lv_obj_set_event_cb(close_button, App::close_event_handler);
 
   _hour_roller = lv_roller_create(_window, NULL);
-  lv_obj_set_pos(_hour_roller, 10, 20);
-  //  lv_obj_align(_hour_roller, _window, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_align(_hour_roller, _window, LV_ALIGN_IN_LEFT_MID, 10, 0);
   lv_roller_set_auto_fit(_hour_roller, true);
   lv_roller_set_options(_hour_roller, "00\n01\n02\n03\n04\n05\n06\n07\n08\n09\n10", LV_ROLLER_MODE_NORMAL);
   lv_roller_set_visible_row_count(_hour_roller, 4);
   lv_obj_set_event_cb(_hour_roller, Timer::event_handler);
 
   lv_obj_t *colon_label = lv_label_create(_window, NULL);
-  //  lv_obj_set_size(colon_label, 50, 16);
-  lv_obj_set_pos(colon_label, 63, 90);
+  lv_obj_align(colon_label, _hour_roller, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
   lv_label_set_text(colon_label, ":");
 
   _minute_roller = lv_roller_create(_window, NULL);
-  lv_obj_set_pos(_minute_roller, 70, 20);
-  //  lv_obj_align(_minute_roller, _window, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_align(_minute_roller, _window, LV_ALIGN_IN_LEFT_MID, 70, 0);
   lv_roller_set_auto_fit(_minute_roller, true);
   char options[192];
   options[0] = 0;
   char option_buf[8];
   for (int i = 0; i < 60; i++) {
-    sprintf(option_buf, "%02d\n", i);
+    sprintf(option_buf, (i ? "\n%02d" : "00"), i);
     strcat(options, option_buf);
   }
   lv_roller_set_options(_minute_roller, options, LV_ROLLER_MODE_NORMAL);
@@ -84,11 +80,11 @@ Timer::Timer()
   lv_obj_add_state(_hour_roller, LV_STATE_FOCUSED);
 
   _time_label = lv_label_create(_window, NULL);
-  //  lv_obj_set_size(_time_label, 100, 100);
-  lv_obj_align(_time_label, _window, LV_ALIGN_IN_RIGHT_MID, -150, 0);
+  lv_obj_align(_time_label, _window, LV_ALIGN_IN_RIGHT_MID, -160, 0);
   lv_label_set_text(_time_label, "");
   static lv_style_t timer_style;
-  lv_style_set_text_font(&timer_style, LV_STATE_DEFAULT, &dseg7);
+  lv_label_set_recolor(_time_label, true);
+  lv_style_set_text_font(&timer_style, LV_STATE_DEFAULT, &dseg7_32);
   lv_obj_add_style(_time_label, LV_LABEL_PART_MAIN, &timer_style);
 
   update_setting();
@@ -108,24 +104,22 @@ void Timer::activate()
 
 void Timer::deactivate()
 {
+  stop();
   App::deactivate();
 }
 
 
 void Timer::update_display()
 {
-  sprintf(_strbuf, "%02d:%02d:%02d", _hours, _minutes, _seconds);
-  lv_label_set_text(_time_label, _strbuf);
+  sprintf(strbuf, "#%s %02d:%02d:%02d#", (_running ? "00FF00" : "888888"), _hours, _minutes, _seconds);
+  lv_label_set_text(_time_label, strbuf);
 }
 
 
 void Timer::update_setting()
 {
-  if (_focussed_roller == _hour_roller) {
-    _hours = lv_roller_get_selected(_hour_roller);
-  } else {
-    _minutes = lv_roller_get_selected(_minute_roller);
-  }
+  _hours = lv_roller_get_selected(_hour_roller);
+  _minutes = lv_roller_get_selected(_minute_roller);
   _seconds = 0;
   update_display();
 }
@@ -133,15 +127,31 @@ void Timer::update_setting()
 
 void Timer::start()
 {
+  disable_sensor_tasks();
+  update_setting();
   _running = true;
   _seconds_countdown = _hours * 3600 + _minutes * 60;
   _start_time = millis();
+  lv_obj_clear_state(_minute_roller, LV_STATE_FOCUSED);
+  lv_obj_clear_state(_hour_roller, LV_STATE_FOCUSED);
+  lv_obj_set_state(_minute_roller, LV_STATE_DISABLED);
+  lv_obj_set_state(_hour_roller, LV_STATE_DISABLED);
+
+  update_display();
 }
 
 
 void Timer::stop()
 {
+  enable_sensor_tasks();
   _running = false;
+  lv_obj_clear_state(_minute_roller, LV_STATE_DISABLED);
+  lv_obj_clear_state(_hour_roller, LV_STATE_DISABLED);
+  lv_obj_clear_state(_minute_roller, LV_STATE_FOCUSED);
+  lv_obj_add_state(_hour_roller, LV_STATE_FOCUSED);
+  _focussed_roller = _hour_roller;
+
+  update_display();
 }
 
 
@@ -155,10 +165,10 @@ void Timer::reset()
 }
 
 
-void Timer::update()
+void Timer::update(unsigned long now)
 {
   if (_running) {
-    uint32_t elapsed = (millis() - _start_time) / 1000;
+    uint32_t elapsed = (now - _start_time) / 1000;
     uint32_t remaining = _seconds_countdown - elapsed;
 
     _seconds = remaining % 60;
@@ -167,10 +177,28 @@ void Timer::update()
     remaining /= 60;
     _hours = remaining & 0xFF;
     update_display();
-    if (_hour == 0 && _minutes == 0 && _seconds == 0) {
+    if (_hours == 0 && _minutes == 0 && _seconds == 0) {
       stop();
       ring();
     }
+  }
+}
+
+
+void Timer::ring()
+{
+  haptic.play(timer_ring_haptic);
+
+  if (!silent) {
+    digitalWrite(SPKR_ENABLE, HIGH);
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 3; j++) {
+        tone(A0, 2000, 250);
+        delay(400);
+      }
+      delay(500);
+    }
+    digitalWrite(SPKR_ENABLE, LOW);
   }
 }
 

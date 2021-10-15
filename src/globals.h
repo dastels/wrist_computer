@@ -24,8 +24,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#ifndef __GLOBALS_H__
+#define __GLOBALS_H__
+
 #include <stdint.h>
 #include <lvgl.h>
+#include <RTClib.h>
 
 #include "eeprom.h"
 #include "logging.h"
@@ -36,9 +40,18 @@
 
 extern Logger *logger;
 extern Haptic haptic;
+extern RTC_DS3231 rtc;
 extern Eeprom eeprom;
 extern SensorReadings sensor_readings;
 extern IdleScreen *idle;
 extern App *current_app;
 extern lv_indev_t *encoder_dev;
 extern lv_indev_t *navpad_dev;
+extern bool silent;
+extern char strbuf[];
+
+void disable_sensor_tasks();
+void enable_sensor_tasks();
+bool is_current_app(App *app);
+
+#endif

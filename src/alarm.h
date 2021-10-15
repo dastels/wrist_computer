@@ -30,6 +30,10 @@
 #include "lvgl.h"
 #include "app.h"
 
+#define NOISY_TIME (500)        // tone length for alarm ringing
+#define QUIET_TIME (750)        // quiet time between tone bursts for alarm ringing
+
+
 // Alarm app
 // center button starts/stops
 // up/down change mode:
@@ -45,22 +49,37 @@ public:
   void start();
   void stop();
   void reset();
-  void update();
+  void update(unsigned long now);
   void activate();
   void deactivate();
   void handle(lv_obj_t * obj, lv_event_t event) { Alarm::event_handler(obj, event); }
 
 private:
   void update_display();
+  void update_setting();
+  void ring(unsigned long now);
+  void start_ringing(unsigned long now);
+  void stop_ringing();
 
-  bool _running;
-  uint32_t _start_time;
+  lv_obj_t *_hour_roller;
+  lv_obj_t *_minute_roller;
+  lv_obj_t *_focussed_roller;
+  lv_obj_t *_time_label;
+  lv_obj_t *_running_indicator;
+  lv_obj_t *_ringing_indicator;
+
+  // operastional states
+  bool _running;                // Is the alarm watching the time
+  bool _ringing;                // Is the alarm ringing
+  bool _triggered;              // Has the alarm been triggered
+
+  // manage the ringing
+  unsigned long _sound_on_time;  // time the tone should turn on
+  unsigned long _sound_off_time; // time the tone should turn off
+  bool _sound_on;                // whether the tone is on
+
   uint8_t _hours;
   uint8_t _minutes;
-  uint8_t _seconds;
-  uint8_t _hundredths;
-  uint8_t _frames;
-  lv_group_t * _group;
 
   static void event_handler(lv_obj_t * obj, lv_event_t event);
 };

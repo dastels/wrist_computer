@@ -50,6 +50,7 @@
 // #include "AudioSampleButton1.h"
 
 #include "defines.h"
+#include "secrets.h"
 #include "indicator.h"
 #include "logging.h"
 #include "serial_handler.h"
@@ -66,8 +67,11 @@
 #include "alarm.h"
 #include "stopwatch.h"
 #include "timer.h"
+#include "weather.h"
+#include "settings.h"
 
-LV_FONT_DECLARE(DSEG7);
+LV_FONT_DECLARE(DSEG7_16);
+LV_FONT_DECLARE(DSEG7_32);
 
 // ILI9341 with 8-bit parallel interface:
 Adafruit_ILI9341 tft(tft8bitbus, TFT_D0, TFT_WR, TFT_DC, TFT_CS, TFT_RST, TFT_RD);
@@ -81,6 +85,8 @@ Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
 Haptic haptic;
+
+bool silent = false;
 
 uint32_t button_pin_mask = (1 << CENTER_BUTTON_PIN) | (1 << CANCEL_BUTTON_PIN) | (1 << UP_BUTTON_PIN) | (1 << DOWN_BUTTON_PIN) | (1 << LEFT_BUTTON_PIN) | (1 << RIGHT_BUTTON_PIN);
 
@@ -100,6 +106,9 @@ Adafruit_LvGL_Glue glue;
 
 SdFat SD;
 
+char strbuf[4096];
+
+
 //==============================================================================
 // Audio support
 
@@ -107,7 +116,6 @@ SdFat SD;
 // AudioOutputAnalogStereo  audioOutput;
 // AudioConnection          patchCord1(sample1, 0, audioOutput, 1);
 // AudioConnection          patchCord2(sample1, 1, audioOutput, 0);
-
 
 
 void fail(void)
@@ -123,7 +131,6 @@ void fail(void)
     delay(75);
   }
 }
-
 
 
 void initialize_serial()
@@ -153,19 +160,6 @@ void initialize_logging()
 
 
 //==============================================================================
-// For sample sensor display
-//==============================================================================
-lv_obj_t *time_value_label;
-lv_obj_t *light_value_label;
-lv_obj_t *temp_value_label;
-lv_obj_t *accel_value_label;
-lv_obj_t *mag_value_label;
-lv_obj_t *bme1_value_label;
-lv_obj_t *bme2_value_label;
-lv_obj_t *buttons_value_label;
-//------------------------------------------------------------------------------
-
-//==============================================================================
 // Display update tasks
 //==============================================================================
 lv_task_t * time_update_task;
@@ -185,6 +179,7 @@ lv_task_t * app_update_task;
 //==============================================================================
 uint8_t stopwatch_start_haptic;
 uint8_t stopwatch_stop_haptic;
+uint8_t timer_ring_haptic;
 
 void initialize_haptic_patterns()
 {
@@ -193,65 +188,33 @@ void initialize_haptic_patterns()
 
   uint8_t stopwatch_stop_pattern[] = {34, 0};
   stopwatch_stop_haptic = haptic.add_effect(stopwatch_stop_pattern);
+
+  uint8_t timer_ring_pattern[] = {37, 123, 123, 37, 123, 123, 37, 123, 123, 37, 0};
+  timer_ring_haptic = haptic.add_effect(timer_ring_pattern);
 }
+//------------------------------------------------------------------------------
 
-//==============================================================================
-// Task functions
-//==============================================================================
-
-char buffer[128]; // Since the LVGL formatting doesn't seem to support floats
-
-void update_light(lv_task_t *task)
-{
-  sensor_readings.light = analogRead(LIGHT_SENSOR);
-}
-
-void update_internal_temperature(lv_task_t *task)
-{
-  sensor_readings.internal_temperature = tempsensor.readTempC();
-}
-
-void update_acceleration(lv_task_t *task)
-{
-  sensors_event_t event;
-  accel.getEvent(&event);
-  sensor_readings.acceleration.x = event.acceleration.x;
-  sensor_readings.acceleration.y = event.acceleration.y;
-  sensor_readings.acceleration.z = event.acceleration.z;
-}
-
-void update_magnetic(lv_task_t *task)
-{
-  sensors_event_t event;
-  mag.getEvent(&event);
-  sensor_readings.magnetic.x = event.magnetic.x;
-  sensor_readings.magnetic.y = event.magnetic.y;
-  sensor_readings.magnetic.z = event.magnetic.z;
-}
-
-void update_bme(lv_task_t *task)
-{
-  if (bme.performReading()) {
-    sensor_readings.temperature = bme.temperature;
-    sensor_readings.pressure = bme.pressure / 100.0;
-    sensor_readings.humidity = bme.humidity;
-    sensor_readings.gas = bme.gas_resistance / 1000.0;
-    sensor_readings.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
-  }
-}
 
 void update_time_display(lv_task_t *task)
 {
   DateTime t = rtc.now();
-  sprintf(buffer, "%4d/%02d/%02d %02d:%02d:%02d", t.year(), t.month(), t.day(), t.hour(), t.minute(), t.second());
-  lv_label_set_text(time_value_label, buffer);
+  current_app->update_time_display(&t);
 }
+
 
 void update_app(lv_task_t *task)
 {
+  unsigned long now = millis();
+  idle->update_persistant_background_apps(now);
   if (current_app) {
-    current_app->update();
+    current_app->update(now);
   }
+}
+
+
+bool is_current_app(App *app)
+{
+  return app == current_app;
 }
 
 
@@ -270,17 +233,9 @@ uint32_t wheel(byte wheel_pos)
 }
 
 
-void init_hardware()
+void init_hardware(lv_obj_t * status_text)
 {
   bool success = true;
-
-  lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
-  lv_label_set_text(label, "Hello PyPortal!");
-  lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
-  lv_obj_t * status_text = lv_textarea_create(lv_scr_act(), NULL);
-  lv_obj_set_size(status_text, 240, 175);
-  lv_obj_align(status_text, label, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
-  lv_textarea_set_text(status_text, "");
 
   // RTC
   lv_textarea_add_text(status_text, "RTC ");
@@ -370,12 +325,130 @@ void init_hardware()
   }
   lv_task_handler();
 
+  // Haptic
+  lv_textarea_add_text(status_text, "HAPTIC ");
+  if (!haptic.begin()) {
+    lv_textarea_add_text(status_text, "FAILED\n");
+    success = false;
+  } else {
+    lv_textarea_add_text(status_text, "PASSED\n");
+    initialize_haptic_patterns();
+  }
+  lv_task_handler();
+
   initialize_nav_pad();
 
   if (!success) {
     fail();
   }
 }
+
+
+//==============================================================================
+// Task functions
+//==============================================================================
+
+
+void update_light(lv_task_t *task)
+{
+  sensor_readings.light = analogRead(LIGHT_SENSOR);
+}
+
+
+void update_internal_temperature(lv_task_t *task)
+{
+  sensor_readings.internal_temperature = tempsensor.readTempC();
+}
+
+
+void update_acceleration(lv_task_t *task)
+{
+  sensors_event_t event;
+  accel.getEvent(&event);
+  sensor_readings.acceleration.x = event.acceleration.x;
+  sensor_readings.acceleration.y = event.acceleration.y;
+  sensor_readings.acceleration.z = event.acceleration.z;
+}
+
+
+void update_magnetic(lv_task_t *task)
+{
+  sensors_event_t event;
+  mag.getEvent(&event);
+  sensor_readings.magnetic.x = event.magnetic.x;
+  sensor_readings.magnetic.y = event.magnetic.y;
+  sensor_readings.magnetic.z = event.magnetic.z;
+}
+
+
+void update_bme(lv_task_t *task)
+{
+  if (bme.performReading()) {
+    sensor_readings.temperature = bme.temperature;
+    sensor_readings.pressure = bme.pressure / 100.0;
+    sensor_readings.humidity = bme.humidity;
+    sensor_readings.gas = bme.gas_resistance / 1000.0;
+    sensor_readings.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+  }
+}
+
+void init_sensor_tasks()
+{
+  static uint32_t user_data = 10;
+
+  light_update_task = lv_task_create(update_light, 2000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(light_update_task);
+
+  temp_update_task = lv_task_create(update_internal_temperature, 10000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(temp_update_task);
+
+  accel_update_task = lv_task_create(update_acceleration, 500, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(accel_update_task);
+
+  mag_update_task = lv_task_create(update_magnetic, 5000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(mag_update_task);
+
+  bme_update_task = lv_task_create(update_bme, 6000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(bme_update_task);
+
+}
+
+
+void disable_sensor_tasks()
+{
+  lv_task_set_prio(light_update_task, LV_TASK_PRIO_OFF);
+  lv_task_set_prio(temp_update_task, LV_TASK_PRIO_OFF);
+  lv_task_set_prio(accel_update_task, LV_TASK_PRIO_OFF);
+  lv_task_set_prio(mag_update_task, LV_TASK_PRIO_OFF);
+  lv_task_set_prio(bme_update_task, LV_TASK_PRIO_OFF);
+}
+
+
+void enable_sensor_tasks()
+{
+  lv_task_set_prio(light_update_task, LV_TASK_PRIO_LOW);
+  lv_task_set_prio(temp_update_task, LV_TASK_PRIO_LOW);
+  lv_task_set_prio(accel_update_task, LV_TASK_PRIO_HIGH);
+  lv_task_set_prio(mag_update_task, LV_TASK_PRIO_LOW);
+  lv_task_set_prio(bme_update_task, LV_TASK_PRIO_LOW);
+}
+
+
+// void printWifiStatus() {
+
+//   // print the SSID of the network you're attached to:
+//   logger->debug("SSID: %s", WiFi.SSID());
+
+//   // print your board's IP address:
+//   IPAddress ip = WiFi.localIP();
+//   logger->debug("IP Address: ");
+
+//   Serial.println(ip);
+
+//   // print the received signal strength:
+//   logger->debug("signal strength (RSSI): %f dBm", WiFi.RSSI());
+// }
+
 
 void setup() {
   logger->debug("Setup()");
@@ -413,17 +486,32 @@ void setup() {
     while(1);
   }
 
-  init_hardware();
+  lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
+  lv_label_set_text(label, "Hello PyPortal!");
+  lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
+  lv_obj_t * status_text = lv_textarea_create(lv_scr_act(), NULL);
+  lv_obj_set_size(status_text, 240, 175);
+  lv_obj_align(status_text, label, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  lv_textarea_set_text(status_text, "");
 
-  if (haptic.begin()) {
-    initialize_haptic_patterns();
-  } else {
-    fail();
+
+  init_hardware(status_text);
+  lv_textarea_add_text(status_text, "Connecting to Wifi\n");
+  lv_task_handler();
+
+  int wifi_status = WL_IDLE_STATUS;
+  while (wifi_status != WL_CONNECTED) {
+    logger->debug("Attempting to connect to SSID: %s", ssid);
+    wifi_status = WiFi.begin(ssid, pass);
+    delay(10000);               // wait 10 seconds for connection
   }
 
+  logger->debug("Connected to wifi");
+  //  printWifiStatus();
 
-  pinMode(SPKR_SHUTDOWN, OUTPUT);
-  digitalWrite(SPKR_SHUTDOWN, LOW);
+
+  pinMode(SPKR_ENABLE, OUTPUT);
+  digitalWrite(SPKR_ENABLE, LOW);
 
   // Cleanup status display
   // lv_obj_del(status_text);
@@ -433,17 +521,27 @@ void setup() {
   idle->register_app(new Alarm());
   idle->register_app(new Stopwatch());
   idle->register_app(new Timer());
+  idle->register_app(new Weather());
+  idle->register_app(new Settings());
   current_app = idle;
   idle->activate();
 
+  logger->debug("Idle activated");
+
   static uint32_t user_data = 10;
-  app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_MID, &user_data);
+  app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_HIGHEST, &user_data);
   lv_task_ready(app_update_task);
 
-  lv_task_handler();
+  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(time_update_task);
+
+  init_sensor_tasks();
+
+  logger->debug("Tasks created");
 }
 
+
 void loop() {
-  unsigned long now = millis();
   lv_task_handler(); // Call LittleVGL task handler periodically
+  delay(2);
 }

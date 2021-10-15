@@ -40,7 +40,6 @@ Haptic::Haptic()
 bool Haptic::begin()
 {
   bool status = _drv->begin();
-  logger->debug("Haptic began -> %s", status ? "pass" : "fail");
   if (status) {
     _drv->setMode(DRV2605_MODE_INTTRIG);
   }

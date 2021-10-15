@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Timer App
+// Settings App
 //
 // The MIT License (MIT)
 //
@@ -24,49 +24,37 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __TIMER_H__
-#define __TIMER_H__
+#ifndef __SETTINGS_H__
+#define __SETTINGS_H__
 
+#include "lvgl.h"
 #include "app.h"
 
-// Timer app
-// center button starts/stops
-// up/down change mode:
-//   - hh:mm:ss.hh (hh = hundredths of a second)
-//   - hh:mm:ss ff (ff = frames)
-//     left/right change frames/second (6, 12, 24, 32, whatever) this is remembered
-
-class Timer: public App
+class Settings: public App
 {
 public:
-  Timer();
-  ~Timer();
-  void start();
-  void stop();
-  void reset();
+  Settings();
+  ~Settings();
   void update(unsigned long now);
   void activate();
   void deactivate();
-  void handle(lv_obj_t * obj, lv_event_t event) { Timer::event_handler(obj, event); }
+  void handle(lv_obj_t * obj, lv_event_t event) { Settings::event_handler(obj, event); }
 
-private:
-  void update_display();
-  void update_setting();
-  void ring();
-
+ private:
   lv_obj_t *_hour_roller;
   lv_obj_t *_minute_roller;
-  lv_obj_t *_focussed_roller;
-  lv_obj_t *_time_label;
+  lv_obj_t *_year_roller;
+  lv_obj_t *_month_roller;
+  lv_obj_t *_day_roller;
+  lv_obj_t *_silence_switch;
 
+  lv_obj_t *_controls[6];
+  uint8_t _focussed_control;
+  uint8_t _number_of_controls;
 
-  bool _running;
-  uint32_t _start_time;
-  uint32_t _seconds_countdown;
-  uint8_t _hours;
-  uint8_t _minutes;
-  uint8_t _seconds;
-
+  static void set_time(lv_obj_t * obj, lv_event_t event);
+  static void set_date(lv_obj_t * obj, lv_event_t event);
+  static void set_silence(lv_obj_t * obj, lv_event_t event);
   static void event_handler(lv_obj_t * obj, lv_event_t event);
 };
 

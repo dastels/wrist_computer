@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Timer App
+// Weather App
 //
 // The MIT License (MIT)
 //
@@ -24,50 +24,49 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __TIMER_H__
-#define __TIMER_H__
+#ifndef __WEATHER_H__
+#define __WEATHER_H__
+
+#include <WiFiNINA.h>
 
 #include "app.h"
 
-// Timer app
-// center button starts/stops
-// up/down change mode:
-//   - hh:mm:ss.hh (hh = hundredths of a second)
-//   - hh:mm:ss ff (ff = frames)
-//     left/right change frames/second (6, 12, 24, 32, whatever) this is remembered
-
-class Timer: public App
+class Weather: public App
 {
 public:
-  Timer();
-  ~Timer();
-  void start();
-  void stop();
-  void reset();
+  Weather();
+  ~Weather();
   void update(unsigned long now);
   void activate();
   void deactivate();
-  void handle(lv_obj_t * obj, lv_event_t event) { Timer::event_handler(obj, event); }
+  void handle(lv_obj_t * obj, lv_event_t event) { Weather::event_handler(obj, event); }
 
 private:
   void update_display();
-  void update_setting();
-  void ring();
-
-  lv_obj_t *_hour_roller;
-  lv_obj_t *_minute_roller;
-  lv_obj_t *_focussed_roller;
-  lv_obj_t *_time_label;
-
-
-  bool _running;
-  uint32_t _start_time;
-  uint32_t _seconds_countdown;
-  uint8_t _hours;
-  uint8_t _minutes;
-  uint8_t _seconds;
-
+  bool fetch_weather();
+  bool extract_data();
+  WiFiClient *_client;
   static void event_handler(lv_obj_t * obj, lv_event_t event);
+
+  char *_description;
+  float _temperature;
+  float _feels_like;
+  float _pressure;
+  float _humidity;
+  float _wind_speed;
+  float _wind_direction;
+  float _wind_gust;
+
+  lv_obj_t *_description_display;
+  lv_obj_t *_temperature_display;
+  lv_obj_t *_temperature_feels_like_display;
+  lv_obj_t *_pressure_display;
+  lv_obj_t *_humidity_display;
+  lv_obj_t *_wind_speed_display;
+  lv_obj_t *_wind_direction_display;
+  lv_obj_t *_wind_gust_display;
+  unsigned long _screen_update_time;
+
 };
 
 #endif

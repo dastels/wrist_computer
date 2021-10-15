@@ -42,9 +42,7 @@ lv_indev_t *navpad_dev;
 
 bool encoder_read(lv_indev_drv_t * drv, lv_indev_data_t*data)
 {
-  //logger->debug("encoder_read");
   data->enc_diff = (int16_t)ss.getEncoderDelta();
-  // logger->debug("encoder read, diff: %d", data->enc_diff);
   data->state = ss.digitalRead(CENTER_BUTTON_PIN) ? LV_INDEV_STATE_REL : LV_INDEV_STATE_PR;
   return false;
 }

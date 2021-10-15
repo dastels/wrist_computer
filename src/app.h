@@ -28,6 +28,7 @@
 #define __APP_H__
 
 #include <stdint.h>
+#include <RTClib.h>
 #include <lvgl.h>
 
 // class App;
@@ -38,21 +39,24 @@
 class App
 {
 public:
-  App(const char *name);
-  ~App();
+  App(const char *name, bool make_persistant = false);
+  virtual ~App();
   virtual void activate();
   virtual void deactivate();
-  virtual void encoder_changed(int32_t pos);
-  virtual void nav_button_pressed(uint8_t button);
-  virtual void nav_button_released(uint8_t button);
-  virtual void update();
+  virtual void encoder_changed(int32_t pos) {}
+  virtual void nav_button_pressed(uint8_t button) {}
+  virtual void nav_button_released(uint8_t button) {}
+  virtual void update(unsigned long now) {}
+  virtual void update_time_display(DateTime *now) {}
   const char *name() { return _name; }
-  virtual void handle(lv_obj_t * obj, lv_event_t event) {}
-  //  virtual handler_t *handler();
+  bool is_persistant() { return _persistant; }
+  virtual void handle(lv_obj_t * obj, lv_event_t event) = 0;
 protected:
   static void close_event_handler(lv_obj_t * obj, lv_event_t event);
   lv_obj_t *_window;
+private:
   const char *_name;
+  bool _persistant;
 };
 
 #endif

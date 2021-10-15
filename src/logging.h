@@ -40,7 +40,7 @@ class Logger
   static Logger *_instance;
   LoggingHandler *_handlers[MAX_NUMBER_OF_HANDLERS];
   LogLevel _level;
-  char _buffer[256];
+  char _buffer[1024];
   void _internal_log(LogLevel level, const char *format, va_list args);
 
  public:

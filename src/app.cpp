@@ -28,8 +28,9 @@
 #include "app.h"
 
 
-App::App(const char *name)
+App::App(const char *name, bool make_persistant)
   :_name(name)
+  , _persistant(make_persistant)
 {
 }
 
@@ -40,7 +41,8 @@ App::~App()
 void App::activate()
 {
   logger->debug("Activating %s", _name);
-   lv_obj_set_hidden(_window, false);
+  lv_obj_set_hidden(_window, false);
+  lv_obj_add_state(_window, LV_STATE_FOCUSED);
 }
 
 
@@ -48,24 +50,6 @@ void App::deactivate()
 {
   logger->debug("Deactivating %s", _name);
   lv_obj_set_hidden(_window, true);
-}
-
-void App::encoder_changed(int32_t pos)
-{
-}
-
-
-void App::nav_button_pressed(uint8_t button)
-{
-}
-
-
-void App::nav_button_released(uint8_t button)
-{
-}
-
-
-void App::update() {
 }
 
 

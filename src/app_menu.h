@@ -39,9 +39,7 @@ class AppMenu
   AppMenu(lv_obj_t *window);
   bool register_app(App *app);
   void choose_app();
-  // void up();
-  // void down();
-  // void enter();
+
  private:
   void open();
   void close();
@@ -50,6 +48,8 @@ class AppMenu
   uint8_t _number_of_apps;
   lv_obj_t *_window;
   lv_obj_t *_app_roller;
+
+  friend IdleScreen;
 };
 
 #endif

@@ -6,11 +6,11 @@
 
 #include "lvgl.h"
 
-#ifndef DSEG7
-#define DSEG7 1
+#ifndef DSEG7_32
+#define DSEG7_32 1
 #endif
 
-#if DSEG7
+#if DSEG7_32
 
 /*-----------------
  *    BITMAPS
@@ -217,9 +217,9 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
 
 /*Initialize a public general font descriptor*/
 #if LV_VERSION_CHECK(8, 0, 0)
-const lv_font_t dseg7 = {
+const lv_font_t dseg7_32 = {
 #else
-lv_font_t dseg7 = {
+lv_font_t dseg7_32 = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
@@ -237,4 +237,4 @@ lv_font_t dseg7 = {
 
 
 
-#endif /*#if DSEG7*/
+#endif /*#if DSEG7_32*/

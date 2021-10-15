@@ -28,7 +28,7 @@
 #include "globals.h"
 #include "stopwatch.h"
 
-extern lv_font_t dseg7;
+extern lv_font_t dseg7_32;
 
 extern uint8_t stopwatch_start_haptic;
 extern uint8_t stopwatch_stop_haptic;
@@ -80,8 +80,9 @@ Stopwatch::Stopwatch()
   lv_obj_set_size(_time_label, 200, 100);
   lv_obj_align(_time_label, _window, LV_ALIGN_CENTER, -100, 0);
   lv_label_set_text(_time_label, "");
+  lv_label_set_recolor(_time_label, true);
   static lv_style_t timer_style;
-  lv_style_set_text_font(&timer_style, LV_STATE_DEFAULT, &dseg7);
+  lv_style_set_text_font(&timer_style, LV_STATE_DEFAULT, &dseg7_32);
   lv_obj_add_style(_time_label, LV_LABEL_PART_MAIN, &timer_style);
 
   set_mode(_mode);
@@ -91,7 +92,6 @@ Stopwatch::Stopwatch()
   }
 
   reset();
-  //lv_task_handler();
 }
 
 
@@ -105,15 +105,12 @@ void Stopwatch::activate()
 {
   App::activate();
   reset();
-  // lv_indev_set_group(encoder_dev, _group);
-  // lv_indev_set_group(navpad_dev, _group);
-  // lv_indev_enable(encoder_dev, true);
-  // lv_indev_enable(navpad_dev, true);
 }
 
 
 void Stopwatch::deactivate()
 {
+  stop();
   App::deactivate();
 }
 
@@ -125,8 +122,8 @@ void Stopwatch::set_mode(uint8_t mode) {
     eeprom.set_stopwatch_mode(mode);
     _mode = mode;
   }
-  sprintf(_strbuf, "%s Mode", mode_names[_mode]);
-  lv_label_set_text(_mode_label, _strbuf);
+  sprintf(strbuf, "%s Mode", mode_names[_mode]);
+  lv_label_set_text(_mode_label, strbuf);
   if (_mode == BASIC_MODE) {
     lv_label_set_text(_fps_label, "");
   } else {
@@ -138,8 +135,8 @@ void Stopwatch::set_mode(uint8_t mode) {
 
 void Stopwatch::show_fps()
 {
-  sprintf(_strbuf, "%02d fps", fps_values[_fps]);
-  lv_label_set_text(_fps_label, _strbuf);
+  sprintf(strbuf, "%02d fps", fps_values[_fps]);
+  lv_label_set_text(_fps_label, strbuf);
 }
 
 
@@ -158,17 +155,19 @@ void Stopwatch::set_fps(uint8_t fps) {
 void Stopwatch::update_display()
 {
   if (_mode == BASIC_MODE) {
-    sprintf(_strbuf, "%02d:%02d:%02d.%02d", _hours, _minutes, _seconds, _hundredths);
+    sprintf(strbuf, "#%s %02d:%02d:%02d.%02d#", (_running ? "00FF00" : "888888"), _hours, _minutes, _seconds, _hundredths);
   } else {
-    sprintf(_strbuf, "%02d:%02d:%02d  %02d", _hours, _minutes, _seconds, _frames);
+    sprintf(strbuf, "#%s %02d:%02d:%02d  %02d#", (_running ? "00FF00" : "888888"), _hours, _minutes, _seconds, _frames);
   }
-  lv_label_set_text(_time_label, _strbuf);
+  lv_label_set_text(_time_label, strbuf);
 }
 
 
 void Stopwatch::start()
 {
+  disable_sensor_tasks();
   _running = true;
+  update_display();
   haptic.play(stopwatch_start_haptic);
   _start_time = millis();
 }
@@ -177,7 +176,9 @@ void Stopwatch::start()
 void Stopwatch::stop()
 {
   _running = false;
+  update_display();
   haptic.play(stopwatch_stop_haptic);
+  enable_sensor_tasks();
 }
 
 
@@ -193,7 +194,7 @@ void Stopwatch::reset()
 }
 
 
-void Stopwatch::update()
+void Stopwatch::update(unsigned long now)
 {
   if (_running) {
     uint32_t interval = millis() - _start_time;

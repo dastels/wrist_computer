@@ -1,6 +1,6 @@
 // -*- mode: c++ -*-
 
-// Timer App
+// Secrets
 //
 // The MIT License (MIT)
 //
@@ -24,50 +24,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-#ifndef __TIMER_H__
-#define __TIMER_H__
+#ifndef __SECRETS_H__
+#define __SECRETS_H__
 
-#include "app.h"
-
-// Timer app
-// center button starts/stops
-// up/down change mode:
-//   - hh:mm:ss.hh (hh = hundredths of a second)
-//   - hh:mm:ss ff (ff = frames)
-//     left/right change frames/second (6, 12, 24, 32, whatever) this is remembered
-
-class Timer: public App
-{
-public:
-  Timer();
-  ~Timer();
-  void start();
-  void stop();
-  void reset();
-  void update(unsigned long now);
-  void activate();
-  void deactivate();
-  void handle(lv_obj_t * obj, lv_event_t event) { Timer::event_handler(obj, event); }
-
-private:
-  void update_display();
-  void update_setting();
-  void ring();
-
-  lv_obj_t *_hour_roller;
-  lv_obj_t *_minute_roller;
-  lv_obj_t *_focussed_roller;
-  lv_obj_t *_time_label;
-
-
-  bool _running;
-  uint32_t _start_time;
-  uint32_t _seconds_countdown;
-  uint8_t _hours;
-  uint8_t _minutes;
-  uint8_t _seconds;
-
-  static void event_handler(lv_obj_t * obj, lv_event_t event);
-};
+extern const char *ssid;
+extern const char *pass;
+extern const char *openweather_key;
+extern const char *latitude;
+extern const char *longitude;
 
 #endif

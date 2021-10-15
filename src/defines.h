@@ -48,7 +48,7 @@
 #define TFT_BACKLIGHT (25)
 #define LIGHT_SENSOR  (A2)
 #define SD_CS         (32)
-#define SPKR_SHUTDOWN (50)
+#define SPKR_ENABLE   (50)
 
 #define TFT_ROTATION   (1) // Landscape orientation on PyPortal
 #define TFT_D0        (34) // Data bit 0 pin (MUST be on PORT byte boundary)

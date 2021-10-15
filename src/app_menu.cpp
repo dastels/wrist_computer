@@ -31,24 +31,21 @@
 extern App *current_app;
 AppMenu *app_menu_instance;
 
-static uint32_t key_data;
-
 AppMenu::AppMenu(lv_obj_t *window)
   : _number_of_apps(0)
   , _window(window)
 {
+  logger->debug("==> AppMenu::AppMenu");
   app_menu_instance = this;
   _app_roller = lv_roller_create(_window, NULL);
   lv_obj_set_hidden(_app_roller, true);
   lv_obj_align(_app_roller, _window, LV_ALIGN_CENTER, 0, 0);
   lv_roller_set_auto_fit(_app_roller, true);
+  lv_roller_set_visible_row_count(_app_roller, 4);
   lv_obj_set_event_cb(_app_roller, AppMenu::event_handler);
-  // lv_group_t * _group = lv_group_create();
-  // lv_group_add_obj(_group, _app_roller);
-  // lv_indev_set_group(encoder_dev, _group);
-  // lv_indev_set_group(navpad_dev, _group);
-  lv_indev_enable(encoder_dev, true);
-  lv_indev_enable(navpad_dev, true);
+  // lv_indev_enable(encoder_dev, true);
+  // lv_indev_enable(navpad_dev, true);
+  logger->debug("<== AppMenu::AppMenu");
 }
 
 
@@ -94,7 +91,6 @@ void AppMenu::choose_app()
     strcat(options, option_buf);
   }
   lv_roller_set_options(_app_roller, options, LV_ROLLER_MODE_NORMAL);
-  lv_roller_set_visible_row_count(_app_roller, max(4, _number_of_apps));
   open();
 }
 
