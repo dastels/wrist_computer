@@ -234,49 +234,45 @@ uint32_t wheel(byte wheel_pos)
 }
 
 
-void init_hardware(lv_obj_t * status_text)
+void init_hardware()
 {
   bool success = true;
 
   // RTC
-  lv_textarea_add_text(status_text, "RTC ");
   if (!rtc.begin()) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("RTC FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("RTC PASSED");
   }
   lv_task_handler();
 
   // SEESAW
-  lv_textarea_add_text(status_text, "Seesaw ");
   if (!ss.begin(0x36)) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("SEESAW FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("SEESAW PASSED");
     ss.pinModeBulk(button_pin_mask, INPUT_PULLUP);
     ss.show();
   }
   lv_task_handler();
 
   // LSM303
-  lv_textarea_add_text(status_text, "LSM303 ");
   if (!accel.begin() || !mag.begin()) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("LSM303 FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("LSM303 PASSED");
   }
   lv_task_handler();
 
   // BME680
-  lv_textarea_add_text(status_text, "BME680 ");
   if (!bme.begin()) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("BME680 FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("BME680 PASSED");
     bme.setTemperatureOversampling(BME680_OS_8X);
     bme.setHumidityOversampling(BME680_OS_2X);
     bme.setPressureOversampling(BME680_OS_4X);
@@ -286,53 +282,48 @@ void init_hardware(lv_obj_t * status_text)
   lv_task_handler();
 
   // QSPI FLASH
-  lv_textarea_add_text(status_text, "QSPI Flash ");
   if (!flash.begin()){
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("QSPI FLASH FAILED");
     fail();
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("QSPI FLASH PASSED");
   }
   lv_task_handler();
 
   // SD CARD
-  lv_textarea_add_text(status_text, "SD Card ");
   if (!SD.begin(SD_CS)) {
-    lv_textarea_add_text(status_text, "NOT PRESENT\n");
+    logger->debug("SD NOT PRESENT");
   } else {
-    lv_textarea_add_text(status_text, "PRESENT\n");
+    logger->debug("SD PRESENT");
   }
   lv_task_handler();
 
   // WiFi Module
-  lv_textarea_add_text(status_text, "WiFi ");
   WiFi.status();
   delay(100);
   if (WiFi.status() == WL_NO_MODULE) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("WiFi FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("WiFi PASSED");
   }
   lv_task_handler();
 
   // PyPortal Temperature sensor
-  lv_textarea_add_text(status_text, "ADT7410 ");
   if (!tempsensor.begin()) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("ADT7410 FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("ADT7410 PASSED");
   }
   lv_task_handler();
 
   // Haptic
-  lv_textarea_add_text(status_text, "HAPTIC ");
   if (!haptic.begin()) {
-    lv_textarea_add_text(status_text, "FAILED\n");
+    logger->debug("DRV2605L FAILED");
     success = false;
   } else {
-    lv_textarea_add_text(status_text, "PASSED\n");
+    logger->debug("DRV2605L PASSED");
     initialize_haptic_patterns();
   }
   lv_task_handler();
@@ -486,24 +477,22 @@ void setup() {
     while(1);
   }
 
-  lv_obj_t *label = lv_label_create(lv_scr_act(), NULL);
-  lv_label_set_text(label, "Hello PyPortal!");
-  lv_obj_align(label, NULL, LV_ALIGN_IN_TOP_MID, 0, 0);
-  lv_obj_t * status_text = lv_textarea_create(lv_scr_act(), NULL);
-  lv_obj_set_size(status_text, 240, 175);
-  lv_obj_align(status_text, label, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
-  lv_textarea_set_text(status_text, "");
+  lv_obj_t * preload = lv_spinner_create(lv_scr_act(), NULL);
+  lv_obj_set_size(preload, 100, 100);
+  lv_obj_align(preload, NULL, LV_ALIGN_CENTER, 0, 0);
 
 
-  init_hardware(status_text);
-  lv_textarea_add_text(status_text, "Connecting to Wifi\n");
+  init_hardware();
   lv_task_handler();
 
   int wifi_status = WL_IDLE_STATUS;
   while (wifi_status != WL_CONNECTED) {
     logger->debug("Attempting to connect to SSID: %s", ssid);
     wifi_status = WiFi.begin(ssid, pass);
-    delay(10000);               // wait 10 seconds for connection
+    for (uint8_t i = 0; i < 200; i++) {
+      lv_task_handler();
+      delay(50);               // wait 10 seconds for connection
+    }
   }
 
   logger->debug("Connected to wifi");
