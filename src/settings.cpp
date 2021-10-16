@@ -214,7 +214,7 @@ void Settings::set_date(lv_obj_t * obj, lv_event_t event)
 void Settings::set_silence(lv_obj_t * obj, lv_event_t event)
 {
   if (event == LV_EVENT_VALUE_CHANGED) {
-    logger->debug("Settings::set_silence);
+    logger->debug("Settings::set_silence");
     silent = lv_switch_get_state(settings_instance->_silence_switch);
     eeprom.set_silent(silent);
   }
