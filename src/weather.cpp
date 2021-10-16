@@ -177,9 +177,6 @@ Weather::Weather()
   lv_obj_align(_wind_direction_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 175);
   lv_label_set_text(_wind_direction_display, "");
   lv_label_set_recolor(_wind_direction_display, true);
-  static lv_style_t wind_direction_style;
-  lv_style_set_text_font(&wind_direction_style, LV_STATE_DEFAULT, &dseg7_16);
-  lv_obj_add_style(_wind_direction_display, LV_LABEL_PART_MAIN, &wind_direction_style);
 
   //==============================================================================
   // Wind Gust display
@@ -233,6 +230,33 @@ void Weather::update_display()
 }
 
 
+char *wind_directions[] = {"North", "North East", "East", "South East", "South", "South West", "West", "North West", "Unknown"};
+
+char *Weather::wind_degrees_to_direction(float direction)
+{
+  logger->debug("Wind degrees: %f", direction);
+  if (direction >= 337.5 || direction < 22.5) {
+    return wind_directions[0];
+  } else if (direction >= 22.5 && direction < 67.5) {
+    return wind_directions[1];
+  } else if (direction >= 67.5 && direction < 112.5) {
+    return wind_directions[2];
+  } else if (direction >= 112.5 && direction < 157.5) {
+    return wind_directions[3];
+  } else if (direction >= 157.5 && direction < 202.5) {
+    return wind_directions[4];
+  } else if (direction >= 202.5 && direction < 247.5) {
+    return wind_directions[5];
+  } else if (direction >= 247.5 && direction < 292.5) {
+    return wind_directions[6];
+  } else if (direction >= 292.5 && direction < 337.5) {
+    return wind_directions[7];
+  } else {
+    return wind_directions[8];
+  }
+}
+
+
 void Weather::update(unsigned long now)
 {
     if (now >= _screen_update_time) {
@@ -256,7 +280,7 @@ void Weather::update(unsigned long now)
     sprintf(strbuf, "#00FF00 %07.2f#", _wind_speed);
     lv_label_set_text(_wind_speed_display, strbuf);
 
-    sprintf(strbuf, "#00FF00 %07.2f#", _wind_direction);
+    sprintf(strbuf, "#00FF00 From the %s#", wind_degrees_to_direction(_wind_direction));
     lv_label_set_text(_wind_direction_display, strbuf);
 
     sprintf(strbuf, "#00FF00 %07.2f#", _wind_gust);
@@ -341,6 +365,8 @@ bool Weather::fetch_weather()
     return false;
   }
 }
+
+
 
 bool Weather::extract_data()
 {

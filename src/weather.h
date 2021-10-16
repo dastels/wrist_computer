@@ -42,6 +42,7 @@ public:
   void handle(lv_obj_t * obj, lv_event_t event) { Weather::event_handler(obj, event); }
 
 private:
+  char *wind_degrees_to_direction(float direction);
   void update_display();
   bool fetch_weather();
   bool extract_data();
@@ -55,6 +56,7 @@ private:
   float _humidity;
   float _wind_speed;
   float _wind_direction;
+  char *_wind_direction_description;
   float _wind_gust;
 
   lv_obj_t *_description_display;
