@@ -34,3 +34,7 @@
 *.app
 
 secrets.cpp
+
+images/compass-200.jpg
+
+images/compass-612.jpg
