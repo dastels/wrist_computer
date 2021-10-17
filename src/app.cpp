@@ -53,6 +53,13 @@ void App::deactivate()
 }
 
 
+void App::update_time_display(DateTime *now)
+{
+  sprintf(strbuf, "%4d/%02d/%02d %02d:%02d:%02d", now->year(), now->month(), now->day(), now->hour(), now->minute(), now->second());
+  lv_win_set_title(_window, strbuf);
+}
+
+
 void App::close_event_handler(lv_obj_t * obj, lv_event_t event)
 {
   current_app->deactivate();

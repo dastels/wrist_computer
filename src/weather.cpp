@@ -55,9 +55,7 @@ Weather::Weather()
 
   lv_win_set_header_height(_window, 20);
   lv_win_title_set_alignment(_window, LV_TXT_FLAG_CENTER);
-  lv_win_set_title(_window, "WEATHER");
-  lv_obj_t *close_button = lv_win_add_btn_right(_window, LV_SYMBOL_CLOSE);
-  lv_obj_set_event_cb(close_button, App::close_event_handler);
+  lv_win_set_title(_window, "");
   lv_win_set_scrollbar_mode(_window, LV_SCRLBAR_MODE_OFF);
 
   static lv_style_t window_style;

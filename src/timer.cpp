@@ -46,10 +46,12 @@ Timer::Timer()
   lv_obj_set_hidden(_window, true);
 
   lv_win_set_header_height(_window, 20);
-  lv_win_title_set_alignment(_window, 1);
-  lv_win_set_title(_window, "Timer");
-  lv_obj_t *close_button = lv_win_add_btn_right(_window, LV_SYMBOL_CLOSE);
-  lv_obj_set_event_cb(close_button, App::close_event_handler);
+  lv_win_title_set_alignment(_window, LV_TXT_FLAG_CENTER);
+  lv_win_set_title(_window, "");
+  lv_win_set_scrollbar_mode(_window, LV_SCRLBAR_MODE_OFF);
+  static lv_style_t window_style;
+  lv_style_set_bg_color(&window_style, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+  lv_obj_add_style(_window, LV_WIN_PART_BG, &window_style);
 
   _hour_roller = lv_roller_create(_window, NULL);
   lv_obj_align(_hour_roller, _window, LV_ALIGN_IN_LEFT_MID, 10, 0);

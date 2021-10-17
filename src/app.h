@@ -47,7 +47,7 @@ public:
   virtual void nav_button_pressed(uint8_t button) {}
   virtual void nav_button_released(uint8_t button) {}
   virtual void update(unsigned long now) {}
-  virtual void update_time_display(DateTime *now) {}
+  virtual void update_time_display(DateTime *now);
   const char *name() { return _name; }
   bool is_persistant() { return _persistant; }
   virtual void handle(lv_obj_t * obj, lv_event_t event) = 0;

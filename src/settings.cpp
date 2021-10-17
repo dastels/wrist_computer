@@ -45,11 +45,12 @@ Settings::Settings()
   lv_obj_set_hidden(_window, true);
 
   lv_win_set_header_height(_window, 20);
-  lv_win_title_set_alignment(_window, 1);
-  lv_win_set_title(_window, "Settings");
-  lv_obj_t *close_button = lv_win_add_btn_right(_window, LV_SYMBOL_CLOSE);
-  lv_obj_set_event_cb(close_button, App::close_event_handler);
+  lv_win_title_set_alignment(_window, LV_TXT_FLAG_CENTER);
+  lv_win_set_title(_window, "");
   lv_win_set_scrollbar_mode(_window, LV_SCRLBAR_MODE_OFF);
+  static lv_style_t window_style;
+  lv_style_set_bg_color(&window_style, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+  lv_obj_add_style(_window, LV_WIN_PART_BG, &window_style);
 
   // Time ------------------------------------------------------------
 
@@ -71,7 +72,8 @@ Settings::Settings()
 
   lv_obj_t *colon_label = lv_label_create(_window, NULL);
   lv_obj_align(colon_label, _hour_roller, LV_ALIGN_OUT_RIGHT_MID, 3, 0);
-  lv_label_set_text(colon_label, ":");
+  lv_label_set_recolor(colon_label, true);
+  lv_label_set_text(colon_label, "#FFFFFF :#");
 
   _minute_roller = lv_roller_create(_window, NULL);
   lv_obj_align(_minute_roller, _hour_roller, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
@@ -125,7 +127,7 @@ Settings::Settings()
   lv_roller_set_options(_year_roller, strbuf, LV_ROLLER_MODE_NORMAL);
   lv_roller_set_visible_row_count(_year_roller, 3);
   lv_obj_set_event_cb(_year_roller, Settings::set_date);
-  lv_roller_set_selected(_year_roller, now.year() - 2020, LV_ANIM_OFF);
+  lv_roller_set_selected(_year_roller, min(0, now.year() - 2020), LV_ANIM_OFF);
 
   _controls[control_index++] = _year_roller;
 
@@ -133,7 +135,8 @@ Settings::Settings()
 
   lv_obj_t *silent_label = lv_label_create(_window, NULL);
   lv_obj_align(silent_label, _window, LV_ALIGN_IN_LEFT_MID, 5, 55);
-  lv_label_set_text(silent_label, "Silent");
+  lv_label_set_recolor(silent_label, true);
+  lv_label_set_text(silent_label, "#FFFFFF Silent#");
 
   _silence_switch = lv_switch_create(_window, NULL);
   lv_obj_align(_silence_switch, silent_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);

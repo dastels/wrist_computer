@@ -40,7 +40,6 @@ class IdleScreen: public App
   void deactivate();
   void update(unsigned long now);
   void update_persistant_background_apps(unsigned long now);
-  void update_time_display(DateTime *now);
   bool register_app(App *app);
   void choosing_app(bool on_off) { _choosing_app = on_off; }
   bool choosing_app(void) { return _choosing_app; }

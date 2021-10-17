@@ -43,7 +43,6 @@ IdleScreen::IdleScreen()
   lv_obj_set_event_cb(_window, IdleScreen::event_handler);
   lv_win_set_header_height(_window, 20);
   lv_win_title_set_alignment(_window, LV_TXT_FLAG_CENTER);
-  //  lv_win_set_title(_window, "IDLE SCREEN");
   lv_win_set_scrollbar_mode(_window, LV_SCRLBAR_MODE_OFF);
   lv_obj_set_hidden(_window, false);
 
@@ -182,13 +181,6 @@ void IdleScreen::update_persistant_background_apps(unsigned long now)
       app->update(now);
     }
   }
-}
-
-
-void IdleScreen::update_time_display(DateTime *now)
-{
-  sprintf(strbuf, "%4d/%02d/%02d %02d:%02d:%02d", now->year(), now->month(), now->day(), now->hour(), now->minute(), now->second());
-  lv_win_set_title(_window, strbuf);
 }
 
 
