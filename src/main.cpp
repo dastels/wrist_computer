@@ -69,6 +69,7 @@
 #include "stopwatch.h"
 #include "timer.h"
 #include "weather.h"
+#include "compass.h"
 #include "settings.h"
 
 LV_FONT_DECLARE(DSEG7_16);
@@ -264,6 +265,7 @@ void init_hardware()
     success = false;
   } else {
     logger->debug("LSM303 PASSED");
+    mag.setMagRate(LSM303_MAGRATE_220);
   }
   lv_task_handler();
 
@@ -511,6 +513,7 @@ void setup() {
   idle->register_app(new Stopwatch());
   idle->register_app(new Timer());
   idle->register_app(new Weather());
+  idle->register_app(new Compass());
   idle->register_app(new Settings());
   current_app = idle;
   idle->activate();
