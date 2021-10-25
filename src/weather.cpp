@@ -41,8 +41,8 @@ Weather *weather_instance;
 
 Weather::Weather()
   : App("Weather")
-  , _client(new WiFiClient())
   , _screen_update_time(0)
+  , _description(nullptr)
 {
   weather_instance = this;
 
@@ -201,9 +201,8 @@ Weather::~Weather()
 }
 
 
-void Weather::activate()
+void Weather::refresh_weather_data()
 {
-  App::activate();
   if (fetch_weather()) {
     logger->debug("Got weather data");
     if (extract_data()) {
@@ -217,8 +216,18 @@ void Weather::activate()
 }
 
 
+void Weather::activate()
+{
+  App::activate();
+  lv_task_handler();
+  connect_wifi();
+  refresh_weather_data();
+}
+
+
 void Weather::deactivate()
 {
+  disconnect_wifi();
   App::deactivate();
 }
 
@@ -257,7 +266,9 @@ char *Weather::wind_degrees_to_direction(float direction)
 
 void Weather::update(unsigned long now)
 {
-    if (now >= _screen_update_time) {
+  // once per minute
+  if (now >= _screen_update_time) {
+    refresh_weather_data();
     _screen_update_time = now + 60000;
 
     sprintf(strbuf, "#FFFF00 %s#", _description);
@@ -338,6 +349,8 @@ bool Weather::fetch_weather()
   const char *server = "api.openweathermap.org";
   sprintf(strbuf, "GET /data/2.5/weather?lat=%s&lon=%s&units=metric&appid=%s", latitude, longitude, openweather_key);
 
+  _client = new WiFiClient();
+
   logger->debug("connecting to server: %s", server);
   if (_client->connect(server, 80)) {
     logger->debug("Connected to server");
@@ -377,8 +390,10 @@ bool Weather::extract_data()
     return false;
   }
   logger->debug("Extracting data");
-  const char *desc = doc["weather"][0]["description"];
-  _description = (char *)desc;
+  if (_description) {
+    free(_description);
+  }
+  _description = strdup(doc["weather"][0]["description"]);
   _temperature = doc["main"]["temp"];
   _feels_like = doc["main"]["feels_like"];
   _pressure = doc["main"]["pressure"];

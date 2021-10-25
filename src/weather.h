@@ -44,6 +44,7 @@ public:
 private:
   char *wind_degrees_to_direction(float direction);
   void update_display();
+  void refresh_weather_data();
   bool fetch_weather();
   bool extract_data();
   WiFiClient *_client;
