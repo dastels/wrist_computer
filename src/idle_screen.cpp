@@ -120,6 +120,24 @@ IdleScreen::IdleScreen()
   lv_style_set_text_font(&gas_style, LV_STATE_DEFAULT, &dseg7_16);
   lv_obj_add_style(_gas_display, LV_LABEL_PART_MAIN, &gas_style);
 
+
+  //==============================================================================
+  // Battery display
+  //==============================================================================
+
+  lv_obj_t *battery_label = lv_label_create(_window, NULL);
+  lv_label_set_recolor(battery_label, true);
+  lv_obj_align(battery_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 125);
+  lv_label_set_text(battery_label, "#AAAAAA Battery#");
+
+  _battery_display = lv_label_create(_window, NULL);
+  lv_obj_align(_battery_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 125);
+  lv_label_set_text(_battery_display, "");
+  lv_label_set_recolor(_battery_display, true);
+  static lv_style_t battery_style;
+  lv_style_set_text_font(&battery_style, LV_STATE_DEFAULT, &dseg7_16);
+  lv_obj_add_style(_battery_display, LV_LABEL_PART_MAIN, &battery_style);
+
   _app_menu = new AppMenu(_window);
 
   // Connect encoder and nav-pad
@@ -169,6 +187,9 @@ void IdleScreen::update(unsigned long now)
 
     sprintf(strbuf, "#00FF00 %06.2f#", sensor_readings.gas);
     lv_label_set_text(_gas_display, strbuf);
+
+    sprintf(strbuf, "#00FF00 %06.2f#", sensor_readings.battery_percentage);
+    lv_label_set_text(_battery_display, strbuf);
   }
 }
 

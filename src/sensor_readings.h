@@ -40,6 +40,8 @@ public:
   float humidity;
   float gas;
   float altitude;
+  float battery_percentage;
+  float battery_voltage;
 };
 
 #endif

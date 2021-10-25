@@ -31,6 +31,7 @@
 App::App(const char *name, bool make_persistant)
   :_name(name)
   , _persistant(make_persistant)
+  , _battery_icon(nullptr)
 {
 }
 
@@ -55,9 +56,35 @@ void App::deactivate()
 
 void App::update_time_display(DateTime *now)
 {
+  if (_battery_icon == nullptr) {
+    lv_win_set_btn_width(_window, 25);
+
+    logger->debug("Initializing titlebar indicators");
+    lv_obj_t *battery_button = lv_win_add_btn_right(_window, LV_SYMBOL_BATTERY_FULL);
+    _battery_icon = (lv_obj_get_child(battery_button, NULL));
+
+    lv_obj_t *sd_button = lv_win_add_btn_left(_window, LV_SYMBOL_SD_CARD);
+    _sd_icon = (lv_obj_get_child(sd_button, NULL));
+
+    lv_obj_t *wifi_button = lv_win_add_btn_left(_window, LV_SYMBOL_WIFI);
+    _wifi_icon = (lv_obj_get_child(wifi_button, NULL));
+
+  }
+
   sprintf(strbuf, "%4d/%02d/%02d %02d:%02d:%02d", now->year(), now->month(), now->day(), now->hour(), now->minute(), now->second());
   lv_win_set_title(_window, strbuf);
-}
+
+  if (sensor_readings.battery_percentage > 95.0) {
+    lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_FULL);
+  } else if (sensor_readings.battery_percentage > 65.0) {
+    lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_3);
+  } else if (sensor_readings.battery_percentage > 35.0) {
+    lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_2);
+  } else if (sensor_readings.battery_percentage > 5.0) {
+    lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_1);
+  } else {
+    lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_EMPTY);
+  }
 
 
 void App::close_event_handler(lv_obj_t * obj, lv_event_t event)
