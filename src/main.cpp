@@ -453,6 +453,84 @@ void enable_sensor_tasks()
 }
 
 
+void connect_wifi()
+{
+  int wifi_status = WiFi.status();
+  while (wifi_status != WL_CONNECTED) {
+    logger->debug("Attempting to connect to SSID: %s", ssid);
+    wifi_status = WiFi.begin(ssid, pass);
+    for (uint8_t i = 0; i < 200; i++) {
+      lv_task_handler();
+      delay(50);               // wait 10 seconds for connection
+    }
+  }
+}
+
+
+void disconnect_wifi()
+{
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFi.end();
+  }
+}
+
+
+bool set_time()
+{
+  const char *server = "io.adafruit.com";
+  sprintf(strbuf, "GET /api/v2/%s/integrations/time/struct?x-aio-key=%s&tz=%s HTTP/1.1", aio_username, aio_key, location);
+
+  logger->debug("connecting to time server: %s", server);
+  connect_wifi();
+  WiFiClient *client = new WiFiClient();
+  if (client->connectSSL(server, 443)) {
+    logger->debug("Connected to server");
+    logger->debug("Getting %s", strbuf);
+    client->println(strbuf);
+    sprintf(strbuf, "Host: %s", server);
+    client->println(strbuf);
+    client->println("Connection: close");
+    client->println();
+    delay(250);
+
+    while (!client->available()) {
+      // lv_task_handler();
+      delay(10);
+    }
+    int chars_read = client->read((uint8_t*)strbuf, 4096);
+    disconnect_wifi();
+
+    if (chars_read > 0) {
+      strbuf[chars_read] = 0;
+    } else {
+      logger->error("Got no data from time server");
+      return false;
+    }
+  } else {
+    logger->error("Could not connect to time server");
+    disconnect_wifi();
+    return false;
+  }
+
+  char *json_ptr = strbuf;
+  while (*json_ptr != '{') {
+    json_ptr++;
+  }
+
+  DynamicJsonDocument doc(4096);
+  DeserializationError error = deserializeJson(doc, json_ptr);
+  if (error) {
+    logger->error("time data deserialization failed: ");
+    logger->error(error.c_str());
+    return false;
+  }
+
+  rtc.adjust(DateTime(doc["year"], doc["mon"], doc["mday"], doc["hour"], doc["min"], 0));
+
+  return true;
+}
+
+
 // void printWifiStatus() {
 
 //   // print the SSID of the network you're attached to:
@@ -550,7 +628,7 @@ void setup() {
   lv_task_ready(app_update_task);
 
   time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_HIGH, &user_data);
-  lv_task_ready(time_update_task);
+  set_time();
 
   init_sensor_tasks();
 

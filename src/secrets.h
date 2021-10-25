@@ -32,5 +32,8 @@ extern const char *pass;
 extern const char *openweather_key;
 extern const char *latitude;
 extern const char *longitude;
+extern const char* location;
+extern const char *aio_username;
+extern const char *aio_key;
 
 #endif
