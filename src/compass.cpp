@@ -63,35 +63,83 @@ Compass::~Compass()
 void Compass::activate()
 {
   App::activate();
+  setMagUpdate(true);
 }
 
 
 void Compass::deactivate()
 {
+  setMagUpdate(false);
   App::deactivate();
+}
+
+
+float min_x, max_x, mid_x;
+float min_y, max_y, mid_y;
+float min_z, max_z, mid_z;
+
+void calibrate()
+{
+  float x, y, z;
+
+  x = sensor_readings.magnetic.x;
+  y = sensor_readings.magnetic.y;
+  z = sensor_readings.magnetic.z;
+
+
+  Serial.print("Mag: (");
+  Serial.print(x); Serial.print(", ");
+  Serial.print(y); Serial.print(", ");
+  Serial.print(z); Serial.print(")");
+
+  min_x = min(min_x, x);
+  min_y = min(min_y, y);
+  min_z = min(min_z, z);
+
+  max_x = max(max_x, x);
+  max_y = max(max_y, y);
+  max_z = max(max_z, z);
+
+  mid_x = (max_x + min_x) / 2;
+  mid_y = (max_y + min_y) / 2;
+  mid_z = (max_z + min_z) / 2;
+  Serial.print(" Hard offset: (");
+  Serial.print(mid_x); Serial.print(", ");
+  Serial.print(mid_y); Serial.print(", ");
+  Serial.print(mid_z); Serial.print(")");
+
+  Serial.print(" Field: (");
+  Serial.print((max_x - min_x)/2); Serial.print(", ");
+  Serial.print((max_y - min_y)/2); Serial.print(", ");
+  Serial.print((max_z - min_z)/2); Serial.println(")");
+  delay(10);
+}
+
+
+// Mag: (12.45, 19.35, -49.80) Hard offset: (6.22, 9.75, -24.90) Field: (6.22, 9.75, 24.90)
+
+int16_t Compass::compute_heading()
+{
+  float x = sensor_readings.magnetic.x;
+  float y = sensor_readings.magnetic.y;
+  int16_t heading = (int16_t)((atan2(y, x) * 1800.0) / 3.14159); // This is the value minus the hard iron offset
+  return heading + ((heading < 0) ? 3600 : 0);
 }
 
 
 void Compass::update_display()
 {
-  float x = sensor_readings.magnetic.x;
-  float y = sensor_readings.magnetic.y;
-  int16_t heading = (int)(atan2(y, x) * 1800.0 / 3.14159);
-  if (heading < 0) {
-    heading += 3600;
-  }
-  heading = 3600 - heading;
-  // logger->debug("Mag x: %.2f", x);
-  // logger->debug("Mag y: %.2f", y);
-  // logger->debug("Mag heading: %d", heading);
-  lv_img_set_angle(_compass_image, heading);
+  int16_t heading = compute_heading();
+  logger->debug("Mag x: %6.2f y: %6.2f heading: %3d", sensor_readings.magnetic.x, sensor_readings.magnetic.y, heading);
+  lv_img_set_angle(_compass_image, 3600 - heading);
 }
 
 
 void Compass::update(unsigned long now)
 {
+  // calibrate();
   if (now >= display_update_time) {
-    display_update_time = now + 250; // update 4 times a second
+    display_update_time = now + 100; // update 10 times a second
     update_display();
   }
 }

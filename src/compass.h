@@ -42,6 +42,7 @@ class Compass: public App
   void deactivate();
   void handle(lv_obj_t * obj, lv_event_t event) { Compass::event_handler(obj, event); }
  private:
+  int16_t compute_heading();
   void update_display();
   lv_obj_t *_compass_image;
   static void event_handler(lv_obj_t * obj, lv_event_t event);
