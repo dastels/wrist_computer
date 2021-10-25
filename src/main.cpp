@@ -34,15 +34,17 @@
 #include <Adafruit_GFX.h>
 #include <SdFat.h>
 #include <WiFiNINA.h>
+#include <ArduinoJson.h>
 
 // Sensor includes
 #include <Adafruit_Sensor.h>
-#include <Adafruit_LSM303DLH_Mag.h>
 #include <Adafruit_LSM303_Accel.h>
+#include <Adafruit_LSM303DLH_Mag.h>
 #include <Adafruit_BME680.h>
 #include <Adafruit_ILI9341.h>
 #include <Adafruit_SPIFlash.h>
 #include <Adafruit_ADT7410.h>
+#include <Adafruit_LC709203F.h>
 
 // Screen includes
 #include <Adafruit_LvGL_Glue.h> // Always include this BEFORE lvgl.h!
@@ -112,26 +114,17 @@ SdFat SD;
 char strbuf[4096];
 
 
-//==============================================================================
-// Audio support
-
-// AudioPlayMemory          sample1;
-// AudioOutputAnalogStereo  audioOutput;
-// AudioConnection          patchCord1(sample1, 0, audioOutput, 1);
-// AudioConnection          patchCord2(sample1, 1, audioOutput, 0);
-
-
 void fail(void)
 {
-  int delta = 1;
+  int delta = 2;
   byte red = 0;
   while (1) {
     pixels[0].show(red, 0, 0);
-    if (red == 255 || red == 0) {
+    if (red >= 64 || red <= 10) {
       delta *= -1;
     }
     red += delta;
-    delay(75);
+    delay(200);
   }
 }
 
@@ -163,7 +156,7 @@ void initialize_logging()
 
 
 //==============================================================================
-// Display update tasks
+// Sensor update tasks
 //==============================================================================
 lv_task_t * time_update_task;
 lv_task_t * light_update_task;
@@ -172,7 +165,6 @@ lv_task_t * accel_update_task;
 lv_task_t * mag_update_task;
 lv_task_t * bme_update_task;
 lv_task_t * battery_update_task;
-lv_task_t * display_update_task;
 
 lv_task_t * app_update_task;
 //------------------------------------------------------------------------------
@@ -215,6 +207,17 @@ void update_app(lv_task_t *task)
 }
 
 
+void init_update_tasks()
+{
+  static uint32_t user_data = 10;
+  app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_HIGHEST, &user_data);
+  lv_task_ready(app_update_task);
+
+  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_HIGH, &user_data);
+  lv_task_ready(time_update_task);
+}
+
+
 bool is_current_app(App *app)
 {
   return app == current_app;
@@ -242,7 +245,7 @@ void init_hardware()
 
   // RTC
   if (!rtc.begin()) {
-    logger->debug("RTC FAILED");
+    logger->error("RTC FAILED");
     success = false;
   } else {
     logger->debug("RTC PASSED");
@@ -251,7 +254,7 @@ void init_hardware()
 
   // SEESAW
   if (!ss.begin(0x36)) {
-    logger->debug("SEESAW FAILED");
+    logger->error("SEESAW FAILED");
     success = false;
   } else {
     logger->debug("SEESAW PASSED");
@@ -260,19 +263,28 @@ void init_hardware()
   }
   lv_task_handler();
 
-  // LSM303
-  if (!accel.begin() || !mag.begin()) {
-    logger->debug("LSM303 FAILED");
+  // LSM303DLHC Accelerometer
+  if (!accel.begin()) {
+    logger->error("LSM303DLHC ACCEL FAILED");
     success = false;
   } else {
-    logger->debug("LSM303 PASSED");
-    mag.setMagRate(LSM303_MAGRATE_220);
+    logger->debug("LSM303DLHC ACCEL PASSED");
+  }
+  lv_task_handler();
+
+  // LSM303DLHC Magnetometer
+  if (!mag.begin()) {
+    logger->error("LSM303DLHC MAG FAILED");
+    success = false;
+  } else {
+     mag.enableAutoRange(true);
+    logger->debug("LSM303DLHC MAG PASSED");
   }
   lv_task_handler();
 
   // BME680
   if (!bme.begin()) {
-    logger->debug("BME680 FAILED");
+    logger->error("BME680 FAILED");
     success = false;
   } else {
     logger->debug("BME680 PASSED");
@@ -286,7 +298,7 @@ void init_hardware()
 
   // QSPI FLASH
   if (!flash.begin()){
-    logger->debug("QSPI FLASH FAILED");
+    logger->error("QSPI FLASH FAILED");
     fail();
   } else {
     logger->debug("QSPI FLASH PASSED");
@@ -294,6 +306,8 @@ void init_hardware()
   lv_task_handler();
 
   // SD CARD
+
+  pinMode(SD_DETECT, INPUT_PULLUP);
   if (!SD.begin(SD_CS)) {
     logger->debug("SD NOT PRESENT");
   } else {
@@ -305,7 +319,7 @@ void init_hardware()
   WiFi.status();
   delay(100);
   if (WiFi.status() == WL_NO_MODULE) {
-    logger->debug("WiFi FAILED");
+    logger->error("WiFi FAILED");
     success = false;
   } else {
     logger->debug("WiFi PASSED");
@@ -314,7 +328,7 @@ void init_hardware()
 
   // PyPortal Temperature sensor
   if (!tempsensor.begin()) {
-    logger->debug("ADT7410 FAILED");
+    logger->error("ADT7410 FAILED");
     success = false;
   } else {
     logger->debug("ADT7410 PASSED");
@@ -337,7 +351,7 @@ void init_hardware()
 
   // Haptic
   if (!haptic.begin()) {
-    logger->debug("DRV2605L FAILED");
+    logger->error("DRV2605L FAILED");
     success = false;
   } else {
     logger->debug("DRV2605L PASSED");
@@ -425,9 +439,11 @@ void init_sensor_tasks()
   mag_update_task = lv_task_create(update_magnetic, 5000, LV_TASK_PRIO_LOW, &user_data);
   lv_task_ready(mag_update_task);
 
-  bme_update_task = lv_task_create(update_bme, 6000, LV_TASK_PRIO_LOW, &user_data);
+  bme_update_task = lv_task_create(update_bme, 60000, LV_TASK_PRIO_LOW, &user_data);
   lv_task_ready(bme_update_task);
 
+  battery_update_task = lv_task_create(update_battery, 60000, LV_TASK_PRIO_LOW, &user_data);
+  lv_task_ready(battery_update_task);
 }
 
 
@@ -450,6 +466,13 @@ void enable_sensor_tasks()
   lv_task_set_prio(mag_update_task, LV_TASK_PRIO_LOW);
   lv_task_set_prio(bme_update_task, LV_TASK_PRIO_LOW);
   lv_task_set_prio(battery_update_task, LV_TASK_PRIO_LOW);
+}
+
+
+void setMagUpdate(bool fast_update)
+{
+  lv_task_set_period(mag_update_task, fast_update ? 250 : 5000);
+  lv_task_set_prio(mag_update_task, fast_update ? LV_TASK_PRIO_HIGHEST : LV_TASK_PRIO_LOW);
 }
 
 
@@ -590,19 +613,9 @@ void setup() {
   init_hardware();
   lv_task_handler();
 
-  int wifi_status = WL_IDLE_STATUS;
-  while (wifi_status != WL_CONNECTED) {
-    logger->debug("Attempting to connect to SSID: %s", ssid);
-    wifi_status = WiFi.begin(ssid, pass);
-    for (uint8_t i = 0; i < 200; i++) {
-      lv_task_handler();
-      delay(50);               // wait 10 seconds for connection
-    }
-  }
-
+  connect_wifi();
   logger->debug("Connected to wifi");
   //  printWifiStatus();
-
 
   pinMode(SPKR_ENABLE, OUTPUT);
   digitalWrite(SPKR_ENABLE, LOW);
@@ -620,26 +633,35 @@ void setup() {
   idle->register_app(new Settings());
   current_app = idle;
   idle->activate();
-
   logger->debug("Idle activated");
 
-  static uint32_t user_data = 10;
-  app_update_task = lv_task_create(update_app, 10, LV_TASK_PRIO_HIGHEST, &user_data);
-  lv_task_ready(app_update_task);
-
-  time_update_task = lv_task_create(update_time_display, 1000, LV_TASK_PRIO_HIGH, &user_data);
-  set_time();
-
   init_sensor_tasks();
-
+  init_update_tasks();
   logger->debug("Tasks created");
 
   bool silent = eeprom.get_silent();
 
+  connect_wifi();
+  set_time();
+}
+
+
+bool level_p(sensors_vec_t acceleration)
+{
+  return acceleration.z > 7.0;
+}
+
+
+bool in_front_of_face_p(sensors_vec_t acceleration)
+{
+  return acceleration.x > 7.0;
 }
 
 
 void loop() {
   lv_task_handler(); // Call LittleVGL task handler periodically
+  // if (level_p(sensor_readings.acceleration) || in_front_of_face_p(sensor_readings.acceleration)) {
+  // } else {
+  // }
   delay(2);
 }

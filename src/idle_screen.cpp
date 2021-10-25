@@ -55,10 +55,10 @@ IdleScreen::IdleScreen()
   // Temperature display
   //==============================================================================
 
-  lv_obj_t *_temperature_label = lv_label_create(_window, NULL);
-  lv_label_set_recolor(_temperature_label, true);
-  lv_obj_align(_temperature_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 25);
-  lv_label_set_text(_temperature_label, "#AAAAAA Temperature#");
+  lv_obj_t *temperature_label = lv_label_create(_window, NULL);
+  lv_label_set_recolor(temperature_label, true);
+  lv_obj_align(temperature_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 25);
+  lv_label_set_text(temperature_label, "#AAAAAA Temperature#");
 
   _temperature_display = lv_label_create(_window, NULL);
   lv_obj_align(_temperature_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 25);
@@ -73,10 +73,10 @@ IdleScreen::IdleScreen()
   // Humidity display
   //==============================================================================
 
-  lv_obj_t *_humidity_label = lv_label_create(_window, NULL);
-  lv_label_set_recolor(_humidity_label, true);
-  lv_obj_align(_humidity_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 50);
-  lv_label_set_text(_humidity_label, "#AAAAAA Humidity#");
+  lv_obj_t *humidity_label = lv_label_create(_window, NULL);
+  lv_label_set_recolor(humidity_label, true);
+  lv_obj_align(humidity_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 50);
+  lv_label_set_text(humidity_label, "#AAAAAA Humidity#");
 
   _humidity_display = lv_label_create(_window, NULL);
   lv_obj_align(_humidity_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 50);
@@ -90,10 +90,10 @@ IdleScreen::IdleScreen()
   // Pressure display
   //==============================================================================
 
-  lv_obj_t *_pressure_label = lv_label_create(_window, NULL);
-  lv_label_set_recolor(_pressure_label, true);
-  lv_obj_align(_pressure_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 75);
-  lv_label_set_text(_pressure_label, "#AAAAAA Pressure#");
+  lv_obj_t *pressure_label = lv_label_create(_window, NULL);
+  lv_label_set_recolor(pressure_label, true);
+  lv_obj_align(pressure_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 75);
+  lv_label_set_text(pressure_label, "#AAAAAA Pressure#");
 
   _pressure_display = lv_label_create(_window, NULL);
   lv_obj_align(_pressure_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 75);
@@ -107,10 +107,10 @@ IdleScreen::IdleScreen()
   // Gas display
   //==============================================================================
 
-  lv_obj_t *_gas_label = lv_label_create(_window, NULL);
-  lv_label_set_recolor(_gas_label, true);
-  lv_obj_align(_gas_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 100);
-  lv_label_set_text(_gas_label, "#AAAAAA Gas#");
+  lv_obj_t *gas_label = lv_label_create(_window, NULL);
+  lv_label_set_recolor(gas_label, true);
+  lv_obj_align(gas_label, _window, LV_ALIGN_IN_TOP_LEFT, 5, 100);
+  lv_label_set_text(gas_label, "#AAAAAA Gas#");
 
   _gas_display = lv_label_create(_window, NULL);
   lv_obj_align(_gas_display, _window, LV_ALIGN_IN_TOP_LEFT, 105, 100);

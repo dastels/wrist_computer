@@ -35,7 +35,6 @@ AppMenu::AppMenu(lv_obj_t *window)
   : _number_of_apps(0)
   , _window(window)
 {
-  logger->debug("==> AppMenu::AppMenu");
   app_menu_instance = this;
   _app_roller = lv_roller_create(_window, NULL);
   lv_obj_set_hidden(_app_roller, true);
@@ -43,9 +42,6 @@ AppMenu::AppMenu(lv_obj_t *window)
   lv_roller_set_auto_fit(_app_roller, true);
   lv_roller_set_visible_row_count(_app_roller, 4);
   lv_obj_set_event_cb(_app_roller, AppMenu::event_handler);
-  // lv_indev_enable(encoder_dev, true);
-  // lv_indev_enable(navpad_dev, true);
-  logger->debug("<== AppMenu::AppMenu");
 }
 
 
