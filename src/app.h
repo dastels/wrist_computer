@@ -51,9 +51,14 @@ public:
   const char *name() { return _name; }
   bool is_persistant() { return _persistant; }
   virtual void handle(lv_obj_t * obj, lv_event_t event) = 0;
+  void hide();
+  void show();
 protected:
   static void close_event_handler(lv_obj_t * obj, lv_event_t event);
   lv_obj_t *_window;
+  lv_obj_t *_battery_icon;
+  lv_obj_t *_sd_icon;
+  lv_obj_t *_wifi_icon;
 private:
   const char *_name;
   bool _persistant;

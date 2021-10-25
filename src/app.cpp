@@ -24,6 +24,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+#include <WiFiNINA.h>
+
+#include "defines.h"
 #include "globals.h"
 #include "app.h"
 
@@ -86,10 +89,45 @@ void App::update_time_display(DateTime *now)
     lv_img_set_src(_battery_icon, LV_SYMBOL_BATTERY_EMPTY);
   }
 
+  lv_color_t color;
+  if (sensor_readings.battery_percentage > 60.0) {
+    color = LV_COLOR_GREEN;
+  } else if (sensor_readings.battery_percentage > 20.0) {
+    color = LV_COLOR_YELLOW;
+  } else {
+    color = LV_COLOR_RED;
+  }
+  lv_obj_set_style_local_image_recolor(_battery_icon, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, color);
+
+  if (digitalRead(SD_DETECT)) {
+    lv_obj_set_style_local_image_recolor(_sd_icon, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLUE);
+  } else {
+    lv_obj_set_style_local_image_recolor(_sd_icon, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    lv_obj_set_style_local_image_recolor(_wifi_icon, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_BLUE);
+  } else {
+    lv_obj_set_style_local_image_recolor(_wifi_icon, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+  }
+}
+
 
 void App::close_event_handler(lv_obj_t * obj, lv_event_t event)
 {
   current_app->deactivate();
   current_app = idle;
   idle->activate();
+}
+
+
+void App::hide()
+{
+  lv_obj_set_hidden(_window, true);
+}
+
+
+void App::show()
+{
+  lv_obj_set_hidden(_window, false);
 }

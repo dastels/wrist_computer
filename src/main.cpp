@@ -85,6 +85,7 @@ seesaw_NeoPixel ss(8, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 Adafruit_LSM303DLH_Mag_Unified mag = Adafruit_LSM303DLH_Mag_Unified(12345);
 Adafruit_BME680 bme;
+Adafruit_LC709203F lc;
 Haptic haptic;
 
 Eeprom eeprom(&ss);
@@ -170,7 +171,7 @@ lv_task_t * temp_update_task;
 lv_task_t * accel_update_task;
 lv_task_t * mag_update_task;
 lv_task_t * bme_update_task;
-lv_task_t * buttons_update_task;
+lv_task_t * battery_update_task;
 lv_task_t * display_update_task;
 
 lv_task_t * app_update_task;
@@ -320,6 +321,20 @@ void init_hardware()
   }
   lv_task_handler();
 
+  // Battery sensor
+  uint8_t err;
+  if ((err = lc.begin()) > 0) {
+    logger->error("LC709203F FAILED with %d", err);
+    success = false;
+  } else {
+    lc.setThermistorB(3950);
+    lc.setPackSize(LC709203F_APA_2000MAH);
+    lc.setAlarmVoltage(3.8);
+    logger->debug("LC709203F PASSED");
+  }
+  lv_task_handler();
+
+
   // Haptic
   if (!haptic.begin()) {
     logger->debug("DRV2605L FAILED");
@@ -386,6 +401,14 @@ void update_bme(lv_task_t *task)
   }
 }
 
+
+void update_battery(lv_task_t *task)
+{
+  sensor_readings.battery_voltage = lc.cellVoltage();
+  sensor_readings.battery_percentage = lc.cellPercent();
+}
+
+
 void init_sensor_tasks()
 {
   static uint32_t user_data = 10;
@@ -415,6 +438,7 @@ void disable_sensor_tasks()
   lv_task_set_prio(accel_update_task, LV_TASK_PRIO_OFF);
   lv_task_set_prio(mag_update_task, LV_TASK_PRIO_OFF);
   lv_task_set_prio(bme_update_task, LV_TASK_PRIO_OFF);
+  lv_task_set_prio(battery_update_task, LV_TASK_PRIO_OFF);
 }
 
 
@@ -425,6 +449,7 @@ void enable_sensor_tasks()
   lv_task_set_prio(accel_update_task, LV_TASK_PRIO_HIGH);
   lv_task_set_prio(mag_update_task, LV_TASK_PRIO_LOW);
   lv_task_set_prio(bme_update_task, LV_TASK_PRIO_LOW);
+  lv_task_set_prio(battery_update_task, LV_TASK_PRIO_LOW);
 }
 
 

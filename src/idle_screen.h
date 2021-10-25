@@ -53,7 +53,7 @@ class IdleScreen: public App
   lv_obj_t *_humidity_display;
   lv_obj_t *_pressure_display;
   lv_obj_t *_gas_display;
-  lv_obj_t *_altitude_display;
+  lv_obj_t *_battery_display;
   unsigned long _screen_update_time;
 };
 

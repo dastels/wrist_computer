@@ -38,6 +38,8 @@
 #include "app.h"
 #include "idle_screen.h"
 
+// Global variables
+
 extern Logger *logger;
 extern Haptic haptic;
 extern RTC_DS3231 rtc;
@@ -48,10 +50,17 @@ extern App *current_app;
 extern lv_indev_t *encoder_dev;
 extern lv_indev_t *navpad_dev;
 extern bool silent;
+extern bool sd_present;
 extern char strbuf[];
+extern int wifi_status;
+
+// Global functions
 
 void disable_sensor_tasks();
 void enable_sensor_tasks();
+void setMagUpdate(bool fast_update);
 bool is_current_app(App *app);
+void connect_wifi();
+void disconnect_wifi();
 
 #endif
